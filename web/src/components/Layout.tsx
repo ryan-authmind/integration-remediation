@@ -86,7 +86,7 @@ export default function Layout({ children }: LayoutProps) {
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Typography variant="body2" sx={{ mr: 2, fontWeight: 600, opacity: 0.9 }}>
-                Remediation Engine
+                Integration Engine
             </Typography>
             <IconButton onClick={colorMode.toggleColorMode} color="inherit">
                 {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}

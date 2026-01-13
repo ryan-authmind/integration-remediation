@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import client from '../api/client';
 import {
   Box,
@@ -25,7 +26,8 @@ import {
   Snackbar,
   Alert,
   Select,
-  MenuItem
+  MenuItem,
+  TablePagination
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -37,6 +39,19 @@ import InfoIcon from '@mui/icons-material/Info';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SettingsIcon from '@mui/icons-material/Settings';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 interface Stats {
     total_jobs: number;
@@ -61,6 +76,7 @@ interface Job {
     workflow: { name: string };
     status: string;
     authmind_issue_id: string;
+    trigger_context: string; 
 }
 
 function Row(props: { job: Job, onRerun: () => void }) {
@@ -95,6 +111,17 @@ function Row(props: { job: Job, onRerun: () => void }) {
       }
   };
 
+  // Extract Playbook Name safely
+  let playbookName = 'N/A';
+  try {
+      if (job.trigger_context) {
+          const context = JSON.parse(job.trigger_context);
+          playbookName = context.PlaybookName || 'N/A';
+      }
+  } catch (e) {
+      // ignore parsing error
+  }
+
   return (
     <>
       <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
@@ -106,7 +133,16 @@ function Row(props: { job: Job, onRerun: () => void }) {
         <TableCell component="th" scope="row" sx={{ fontWeight: 700 }}>
           #{job.id}
         </TableCell>
-        <TableCell>{job.workflow?.name || 'Unknown'}</TableCell>
+        <TableCell>
+            <Link to="/workflows" style={{ textDecoration: 'none', color: 'inherit', fontWeight: 500 }}>
+                {job.workflow?.name || 'Unknown'}
+            </Link>
+        </TableCell>
+        <TableCell>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                {playbookName}
+            </Typography>
+        </TableCell>
         <TableCell>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
                 {job.authmind_issue_id}
@@ -121,7 +157,7 @@ function Row(props: { job: Job, onRerun: () => void }) {
                 sx={{ fontWeight: 700, borderRadius: 1 }}
                 color={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'error' : 'info'}
             />
-            <Tooltip title="Rerun this remediation">
+            <Tooltip title="Rerun this workflow">
                 <IconButton size="small" color="primary" onClick={handleRerun}>
                     <PlayArrowIcon fontSize="small" />
                 </IconButton>
@@ -130,7 +166,7 @@ function Row(props: { job: Job, onRerun: () => void }) {
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 2 }}>
               <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -198,9 +234,9 @@ function Row(props: { job: Job, onRerun: () => void }) {
                               </>
                             );
                           })()
-                        } 
+                        }
                         secondary={new Date(log.timestamp).toLocaleTimeString()}
-                        primaryTypographyProps={{ 
+                        primaryTypographyProps={{
                           component: 'div',
                           variant: 'body2', 
                           sx: { whiteSpace: 'pre-wrap' } 
@@ -221,6 +257,9 @@ function Row(props: { job: Job, onRerun: () => void }) {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [settings, setSettings] = useState<{key: string, value: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [rerunTriggered, setRerunTriggered] = useState(false);
@@ -229,17 +268,27 @@ export default function Dashboard() {
     try {
         const [statsRes, jobsRes, settingsRes] = await Promise.all([
             client.get('/stats'),
-            client.get('/jobs'),
+            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}`),
             client.get('/settings')
         ]);
         setStats(statsRes.data);
-        setRecentJobs(jobsRes.data);
+        setRecentJobs(jobsRes.data.data); 
+        setTotalJobs(jobsRes.data.total);
         setSettings(settingsRes.data);
     } catch (error) {
         console.error("Dashboard fetch failed", error);
     } finally {
         setLoading(false);
     }
+  };
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   const handleUpdateRetention = async (days: string) => {
@@ -255,7 +304,7 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => clearInterval(interval);
-  }, []);
+  }, [page, rowsPerPage]);
 
   if (loading || !stats) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
@@ -265,13 +314,23 @@ export default function Dashboard() {
     ? ((stats.success_jobs / stats.total_jobs) * 100).toFixed(1) 
     : "0";
 
+  const workflowData = Object.entries(stats.workflow_breakdown).map(([name, count]) => ({
+      name,
+      value: count
+  })).sort((a, b) => b.value - a.value).slice(0, 10); 
+
+  const statusData = [
+      { name: 'Success', value: stats.success_jobs, color: '#2e7d32' }, 
+      { name: 'Failed', value: stats.failed_jobs, color: '#d32f2f' },   
+  ];
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
         <Box>
             <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>System Performance</Typography>
             <Typography variant="body1" color="text.secondary">
-                Automated remediation throughput and detailed execution logs.
+                Automated workflow throughput and detailed execution logs.
             </Typography>
         </Box>
         
@@ -301,53 +360,109 @@ export default function Dashboard() {
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-            <MetricCard title="Total Remediation Jobs" value={stats.total_jobs} icon={<TrendingUpIcon color="primary" />} />
+            <MetricCard title="Total Executions" value={stats.total_jobs} icon={<TrendingUpIcon color="primary" />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
             <MetricCard title="Active Workflows" value={stats.active_workflows} icon={<SettingsIcon color="info" />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-            <MetricCard title="In-Progress Tasks" value={stats.running_jobs} icon={<SyncIcon color="warning" />} />
+            <MetricCard title="Running Workflows" value={stats.running_jobs} icon={<SyncIcon color="warning" />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
             <MetricCard title="Success Rate" value={`${successRate}%`} icon={<CheckCircleIcon color="success" />} />
         </Grid>
       </Grid>
 
-      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>Remediation Activity</Typography>
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-        <Table aria-label="collapsible table">
-          <TableHead sx={{ bgcolor: 'action.hover' }}>
-            <TableRow>
-              <TableCell width={50} />
-              <TableCell sx={{ fontWeight: 700 }}>Job ID</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Workflow</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>AuthMind Issue ID</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Started At</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {recentJobs.length === 0 ? (
-                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>No remediation activity recorded yet.</TableCell></TableRow>
-            ) : (
-                recentJobs.map((job) => (
-                    <Row 
-                        key={job.id} 
-                        job={job} 
-                        onRerun={() => {
-                            setRerunTriggered(true);
-                            fetchData();
-                        }} 
-                    />
-                ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={8}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Workflow Execution Distribution</Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={workflowData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                          <XAxis type="number" />
+                          <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                          <RechartsTooltip />
+                          <Legend />
+                          <Bar dataKey="value" name="Executions" fill="#1976d2" radius={[0, 4, 4, 0]} barSize={20} />
+                      </BarChart>
+                  </ResponsiveContainer>
+              </Paper>
+          </Grid>
+          <Grid item xs={12} md={4}>
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Success vs Failure</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie
+                                data={statusData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {statusData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <RechartsTooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+              </Paper>
+          </Grid>
+      </Grid>
+
+      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>Recent Activity</Typography>
+      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <TableContainer>
+            <Table aria-label="collapsible table">
+            <TableHead sx={{ bgcolor: 'action.hover' }}>
+                <TableRow>
+                <TableCell width={50} />
+                <TableCell sx={{ fontWeight: 700 }}>Job ID</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Workflow Name</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Playbook Name</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Trigger ID</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Started At</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                </TableRow>
+            </TableHead>
+            <TableBody>
+                {recentJobs.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>No execution history recorded yet.</TableCell></TableRow>
+                ) : (
+                    recentJobs.map((job) => (
+                        <Row 
+                            key={job.id} 
+                            job={job} 
+                            onRerun={() => {
+                                setRerunTriggered(true);
+                                fetchData();
+                            }} 
+                        />
+                    ))
+                )}
+            </TableBody>
+            </Table>
+        </TableContainer>
+        <TablePagination
+            rowsPerPageOptions={[10, 25, 50]}
+            component="div"
+            count={totalJobs}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+        />
+      </Paper>
 
       <Snackbar open={rerunTriggered} autoHideDuration={3000} onClose={() => setRerunTriggered(false)}>
-        <Alert severity="success" sx={{ width: '100%' }}>Manual remediation rerun triggered successfully!</Alert>
+        <Alert severity="success" sx={{ width: '100%' }}>Manual workflow rerun triggered successfully!</Alert>
       </Snackbar>
     </Box>
   );

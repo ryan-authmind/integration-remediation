@@ -8,6 +8,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/masterzen/winrm v0.0.0-20250927112105-5f8e6c707321
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/time v0.14.0
 	gorm.io/gorm v1.25.7
 )
 
@@ -58,7 +59,6 @@ require (
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.22.5 // indirect

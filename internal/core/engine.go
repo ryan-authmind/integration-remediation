@@ -41,6 +41,7 @@ func NewEngine() *Engine {
 
 func (e *Engine) Start() {
 	log.Println("Starting Workflow Engine (Master Poller Mode enabled)...")
+    e.cleanupStaleJobs()
 	e.syncCache()
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -57,6 +58,14 @@ func (e *Engine) Start() {
 			e.runRetentionPolicy()
 		}
 	}
+}
+
+func (e *Engine) cleanupStaleJobs() {
+    log.Println("[Engine] Cleaning up stale 'running' jobs from previous session...")
+    result := database.DB.Model(&database.Job{}).Where("status = ?", "running").Update("status", "failed")
+    if result.RowsAffected > 0 {
+        log.Printf("[Engine] Marked %d stale jobs as failed.", result.RowsAffected)
+    }
 }
 
 func (e *Engine) syncCache() {
@@ -256,7 +265,7 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 		}
 	}
 
-	log.Printf("[Workflow:%s] Executing Remediation for %v (Issue:%s)", wf.Name, triggerContext["UserEmail"], issueID)
+	log.Printf("[Workflow:%s] Executing Workflow for %v (Issue:%s)", wf.Name, triggerContext["UserEmail"], issueID)
 
 	lang := "en"
 	if val, ok := triggerContext["Language"].(string); ok {

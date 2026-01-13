@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"remediation-engine/internal/database"
     "remediation-engine/internal/core"
+    "strconv"
     "time"
 
 	"github.com/gin-gonic/gin"
@@ -182,11 +183,33 @@ func DeleteWorkflow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "workflow archived successfully"})
 }
 
-// GetJobs returns the history of executions
+// GetJobs returns the history of executions with pagination
 func GetJobs(c *gin.Context) {
-	var jobs []database.Job
-	database.DB.Preload("Workflow").Order("created_at desc").Limit(50).Find(&jobs)
-	c.JSON(http.StatusOK, jobs)
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+    if page < 1 { page = 1 }
+    if pageSize < 1 { pageSize = 10 }
+    if pageSize > 100 { pageSize = 100 }
+
+    offset := (page - 1) * pageSize
+
+    var jobs []database.Job
+    var total int64
+
+    database.DB.Model(&database.Job{}).Count(&total)
+
+    database.DB.Preload("Workflow").
+        Order("created_at desc").
+        Limit(pageSize).
+        Offset(offset).
+        Find(&jobs)
+
+    c.JSON(http.StatusOK, gin.H{
+        "data":      jobs,
+        "total":     total,
+        "page":      page,
+        "pageSize":  pageSize,
+    })
 }
 
 // GetJobLogs returns detailed logs for a specific job
