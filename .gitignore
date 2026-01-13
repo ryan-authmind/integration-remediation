@@ -1,0 +1,21 @@
+# Binaries
+remediation-server
+server
+
+# Environment variables
+.env
+
+# Database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Go
+coverage.out
+
+# Node / Frontend
+web/node_modules/
+web/dist/
+
+# OS files
+.DS_Store
