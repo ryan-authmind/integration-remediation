@@ -19,20 +19,36 @@ import {
   TextField,
   Grid,
   Chip,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Alert
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
+import AddIcon from '@mui/icons-material/Add';
 import Editor from '@monaco-editor/react';
 
 interface ActionDefinition {
-  id: number;
+  id?: number;
   name: string;
   vendor: string;
   method: string;
   path_template: string;
   body_template: string;
   integration_id: number;
+  success_field?: string;
+  retry_count?: number;
+}
+
+interface Integration {
+    id: number;
+    name: string;
+    type: string;
 }
 
 // AuthMind Template Variables for Autocomplete
@@ -56,13 +72,30 @@ const TEMPLATE_VARIABLES = [
 
 export default function ActionTemplates() {
   const [actions, setActions] = useState<ActionDefinition[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
   const [selected, setSelected] = useState<ActionDefinition | null>(null);
   const [formData, setFormData] = useState<ActionDefinition | null>(null);
+  
+  // Create Mode State
+  const [createTab, setCreateTab] = useState(0);
+  const [newAction, setNewAction] = useState<ActionDefinition>({
+      name: '',
+      vendor: '',
+      integration_id: 0,
+      method: 'POST',
+      path_template: '',
+      body_template: '{}',
+      retry_count: 3
+  });
+  const [importJson, setImportJson] = useState('');
+  const [importError, setImportError] = useState('');
 
   useEffect(() => {
     fetchActions();
+    fetchIntegrations();
   }, []);
 
   // Configure Monaco Autocomplete
@@ -73,13 +106,10 @@ export default function ActionTemplates() {
         const lineContent = model.getLineContent(position.lineNumber);
         const textBeforeCursor = lineContent.substring(0, position.column - 1);
         
-        // Only show suggestions if we are inside a template marker {{ }}
-        // or just started one with {
         const lastOpening = textBeforeCursor.lastIndexOf('{{');
         const lastClosing = textBeforeCursor.lastIndexOf('}}');
         
         if (lastOpening === -1 || lastOpening < lastClosing) {
-            // Check if they just typed the first {
             if (!textBeforeCursor.endsWith('{')) {
                 return { suggestions: [] };
             }
@@ -99,8 +129,6 @@ export default function ActionTemplates() {
             kind: monaco.languages.CompletionItemKind.Variable,
             documentation: v.documentation,
             detail: v.detail,
-            // If they just typed {{, we should suggest with the dot
-            // If they typed {{., we just suggest the rest
             insertText: v.label.startsWith('.') && textBeforeCursor.endsWith('.') 
                 ? v.label.substring(1) 
                 : v.label,
@@ -120,9 +148,17 @@ export default function ActionTemplates() {
     }
   };
 
+  const fetchIntegrations = async () => {
+      try {
+          const res = await client.get('/integrations');
+          setIntegrations(res.data);
+      } catch (error) {
+          console.error("Failed to fetch integrations", error);
+      }
+  };
+
   const handleEditOpen = (action: ActionDefinition) => {
     setSelected(action);
-    // Pretty print the JSON template if valid
     let body = action.body_template;
     try {
         const parsed = JSON.parse(body);
@@ -144,13 +180,58 @@ export default function ActionTemplates() {
     }
   };
 
+  const handleCreateSave = async () => {
+      let payload = newAction;
+
+      if (createTab === 1) { // Import JSON Mode
+          try {
+              payload = JSON.parse(importJson);
+              setImportError('');
+          } catch (e) {
+              setImportError('Invalid JSON format');
+              return;
+          }
+      }
+
+      try {
+          await client.post('/actions', payload);
+          setCreateOpen(false);
+          fetchActions();
+          // Reset form
+          setNewAction({
+              name: '',
+              vendor: '',
+              integration_id: 0,
+              method: 'POST',
+              path_template: '',
+              body_template: '{}',
+              retry_count: 3
+          });
+          setImportJson('');
+      } catch (error) {
+          console.error("Create failed", error);
+          setImportError('Failed to create action. Check console for details.');
+      }
+  };
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>Action Templates</Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Define the payloads and API endpoints used by your workflows. 
-        Syntax highlighting and variable autocomplete enabled.
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <div>
+            <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>Action Templates</Typography>
+            <Typography variant="body1" color="text.secondary">
+                Define the payloads and API endpoints used by your workflows. 
+            </Typography>
+        </div>
+        <Button 
+            variant="contained" 
+            startIcon={<AddIcon />} 
+            onClick={() => setCreateOpen(true)}
+            sx={{ height: 40 }}
+        >
+            Create Action
+        </Button>
+      </Box>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
         <Table>
@@ -168,7 +249,7 @@ export default function ActionTemplates() {
               <TableRow key={row.id} hover>
                 <TableCell sx={{ fontWeight: 600 }}>{row.name}</TableCell>
                 <TableCell><Chip label={row.vendor} size="small" variant="outlined" color="primary" sx={{ fontWeight: 600 }} /></TableCell>
-                <TableCell><code style={{ color: '#e11d48', fontWeight: 700 }}>{row.method}</code></TableCell>
+                <TableCell><code style={{ color: '#0062FF', fontWeight: 700 }}>{row.method}</code></TableCell>
                 <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: 'text.secondary' }}>{row.path_template}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleEditOpen(row)} color="primary">
@@ -181,6 +262,118 @@ export default function ActionTemplates() {
         </Table>
       </TableContainer>
 
+      {/* Create Action Dialog */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="lg" fullWidth scroll="paper">
+        <DialogTitle sx={{ fontWeight: 700 }}>Create New Action Template</DialogTitle>
+        <DialogContent dividers>
+            <Tabs value={createTab} onChange={(_e, v) => setCreateTab(v)} sx={{ mb: 3 }}>
+                <Tab label="Manual Entry" />
+                <Tab label="Import JSON" />
+            </Tabs>
+
+            {createTab === 0 ? (
+                <Grid container spacing={3}> 
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            label="Action Name"
+                            fullWidth
+                            variant="filled"
+                            value={newAction.name}
+                            onChange={(e) => setNewAction({ ...newAction, name: e.target.value })}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            label="Vendor (e.g., Slack, Jira)"
+                            fullWidth
+                            variant="filled"
+                            value={newAction.vendor}
+                            onChange={(e) => setNewAction({ ...newAction, vendor: e.target.value })}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                        <FormControl fullWidth variant="filled">
+                            <InputLabel>Integration</InputLabel>
+                            <Select
+                                value={newAction.integration_id}
+                                onChange={(e) => setNewAction({ ...newAction, integration_id: Number(e.target.value) })}
+                            >
+                                <MenuItem value={0}><em>Select Integration</em></MenuItem>
+                                {integrations.map(i => (
+                                    <MenuItem key={i.id} value={i.id}>{i.name} ({i.type})</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                        <FormControl fullWidth variant="filled">
+                            <InputLabel>Method</InputLabel>
+                            <Select
+                                value={newAction.method}
+                                onChange={(e) => setNewAction({ ...newAction, method: e.target.value })}
+                            >
+                                <MenuItem value="GET">GET</MenuItem>
+                                <MenuItem value="POST">POST</MenuItem>
+                                <MenuItem value="PUT">PUT</MenuItem>
+                                <MenuItem value="PATCH">PATCH</MenuItem>
+                                <MenuItem value="DELETE">DELETE</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            label="Endpoint Path (e.g. /chat.postMessage)"
+                            fullWidth
+                            variant="filled"
+                            value={newAction.path_template}
+                            onChange={(e) => setNewAction({ ...newAction, path_template: e.target.value })}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Payload Template</Typography>
+                        <Paper variant="outlined" sx={{ border: '1px solid #e2e8f0', borderRadius: 1, overflow: 'hidden' }}>
+                            <Editor
+                                height="300px"
+                                defaultLanguage="json"
+                                theme="vs-dark"
+                                value={newAction.body_template}
+                                beforeMount={handleEditorWillMount}
+                                onChange={(value) => setNewAction({ ...newAction, body_template: value || '{}' })}
+                                options={{
+                                    minimap: { enabled: false },
+                                    fontSize: 13,
+                                    fontFamily: 'JetBrains Mono, Fira Code, monospace',
+                                }}
+                            />
+                        </Paper>
+                    </Grid>
+                </Grid>
+            ) : (
+                <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Paste the raw JSON configuration for the action definition below.
+                    </Typography>
+                    {importError && <Alert severity="error" sx={{ mb: 2 }}>{importError}</Alert>}
+                    <TextField
+                        multiline
+                        rows={15}
+                        fullWidth
+                        variant="outlined"
+                        placeholder='{ "name": "...", "vendor": "...", ... }'
+                        value={importJson}
+                        onChange={(e) => setImportJson(e.target.value)}
+                        sx={{ fontFamily: 'monospace' }}
+                    />
+                </Box>
+            )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setCreateOpen(false)} color="inherit">Cancel</Button>
+            <Button onClick={handleCreateSave} variant="contained" size="large">Create Action</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth scroll="paper">
         <DialogTitle sx={{ fontWeight: 700 }}>Edit Action Template: {selected?.name}</DialogTitle>
         <DialogContent dividers>
@@ -325,18 +518,6 @@ export default function ActionTemplates() {
 }`}
                   </pre>
               </Paper>
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 2 }}>Advanced: Conditional Logic & Loops</Typography>
-              <Typography variant="body2" paragraph>
-                  Templates use Go Syntax. You can check for severities:
-                  <br />
-                  <code>{"{{"}if eq .Severity 4{"}}"} 🚨 CRITICAL 🚨 {"{{"}else{"}}"} ⚠️ WARNING {"{{"}end{"}}"}</code>
-              </Typography>
-              <Typography variant="body2">
-                  Or iterate over evidence results:
-                  <br />
-                  <code>{"{{"}range .Details.Results{"}}"} - {"{{"}.name{"}}"} ({"{{"}.value{"}}"}){"\\n"}{"{{end}}"}</code>
-              </Typography>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
               <Button onClick={() => setDocOpen(false)} variant="contained">Close Documentation</Button>
