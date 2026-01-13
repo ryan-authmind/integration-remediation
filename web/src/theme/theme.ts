@@ -7,12 +7,12 @@ export const getDesignTokens = (mode: PaletteMode) => ({
       ? {
           // AuthMind Dashboard Light
           primary: {
-            main: '#e11d48', // Vibrant Magenta/Pink
-            light: '#fb7185',
-            dark: '#9f1239',
+            main: '#0062FF', // Primary Brand Blue
+            light: '#4d91ff',
+            dark: '#004ecb',
           },
           secondary: {
-            main: '#1e1b4b', // Deep Navy
+            main: '#0A0E17', // Deep Space
           },
           background: {
             default: '#f8fafc',
@@ -22,30 +22,42 @@ export const getDesignTokens = (mode: PaletteMode) => ({
             primary: '#0f172a',
             secondary: '#64748b',
           },
+          success: {
+            main: '#00D1B2', // Observability Teal
+          },
+          error: {
+            main: '#FF4C4C', // Risk Coral
+          },
         }
       : {
           // AuthMind Dashboard Dark
           primary: {
-            main: '#00f5d4', // Neon Cyan/Green
-            light: '#5eead4',
-            dark: '#0d9488',
+            main: '#0062FF', // Primary Brand Blue
+            light: '#4d91ff',
+            dark: '#004ecb',
           },
           secondary: {
-            main: '#000000',
+            main: '#161B22',
           },
           background: {
-            default: '#000000', // Pure Black
-            paper: '#0a0a0a',   // Very Deep Grey
+            default: '#0A0E17', // Deep Space
+            paper: '#161B22',   // Slightly lighter
           },
           text: {
-            primary: '#ffffff',
-            secondary: '#94a3b8',
+            primary: '#F8F9FA',
+            secondary: '#ADB5BD',
+          },
+          success: {
+            main: '#00D1B2', // Observability Teal
+          },
+          error: {
+            main: '#FF4C4C', // Risk Coral
           },
         }),
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h1: { fontSize: '2.5rem', fontWeight: 700 },
+    h1: { fontSize: '2.5rem', fontWeight: 700, letterSpacing: '0.02em' },
     h2: { fontSize: '2rem', fontWeight: 700 },
     h4: { fontWeight: 700 },
     button: {
@@ -60,22 +72,24 @@ export const getDesignTokens = (mode: PaletteMode) => ({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: mode === 'light' ? '#e11d48' : '#00f5d4',
-          color: mode === 'light' ? '#ffffff' : '#000000',
+          backgroundColor: '#0A0E17', // Always Deep Space for AuthMind Identity
+          color: '#ffffff',
           boxShadow: 'none',
+          borderBottom: '1px solid #2D333B',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 4,
+          borderRadius: 8, // Rounded corners (8px) per guide
         },
         containedPrimary: {
-          backgroundColor: mode === 'light' ? '#e11d48' : '#00f5d4',
-          color: mode === 'light' ? '#ffffff' : '#000000',
+          backgroundColor: '#0062FF',
+          color: '#ffffff',
           '&:hover': {
-            backgroundColor: mode === 'light' ? '#be123c' : '#2dd4bf',
+            backgroundColor: '#1a72ff', // Slight brightness increase
+            boxShadow: '0px 4px 12px rgba(0,0,0,0.2)',
           },
         },
       },
@@ -84,7 +98,7 @@ export const getDesignTokens = (mode: PaletteMode) => ({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          border: mode === 'light' ? '1px solid #e2e8f0' : '1px solid #1e293b',
+          border: '1px solid #2D333B', // Divider color from guide
         },
       },
     },

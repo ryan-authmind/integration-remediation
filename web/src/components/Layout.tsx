@@ -70,10 +70,10 @@ export default function Layout({ children }: LayoutProps) {
                   px: 2,
                   borderRadius: 1,
                   opacity: isSelected(item.path) ? 1 : 0.8,
-                  bgcolor: isSelected(item.path) ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                  borderBottom: isSelected(item.path) ? '2px solid rgba(255, 255, 255, 0.8)' : 'none',
+                  bgcolor: isSelected(item.path) ? 'rgba(0, 98, 255, 0.2)' : 'transparent',
+                  borderBottom: isSelected(item.path) ? '2px solid #0062FF' : 'none',
                   '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: 'rgba(0, 98, 255, 0.1)',
                     opacity: 1,
                   },
                   fontWeight: isSelected(item.path) ? 700 : 500,
