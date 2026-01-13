@@ -44,6 +44,28 @@ npm run dev
 ```
 *The UI will run on http://localhost:5173.*
 
+## 🐳 Deployment (Docker)
+
+The application can be built and run as a single containerized unit:
+
+```bash
+docker build -t remediation-engine .
+docker run -p 8080:8080 -v $(pwd)/data:/root/data remediation-engine
+```
+
+*Note: Persistent storage for the SQLite database is handled via the volume mount to `/root/data`.*
+
+## 📊 Capacity & Maintenance
+
+For detailed information on storage estimates, scaling, and database maintenance, please refer to:
+👉 **[CAPACITY_PLANNING.md](./CAPACITY_PLANNING.md)**
+
+### Data Retention Policy
+The system includes an automated cleanup worker that:
+*   Deletes jobs and logs older than a configurable threshold (Default: **90 days**).
+*   Enforces the policy daily and executes a `VACUUM` to optimize disk space.
+*   Retention period can be modified in the **System Performance** dashboard.
+
 ## 💾 Database Schema (Migration from config.json)
 
 We have moved away from `config.json` to a Relational Model:
