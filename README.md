@@ -79,6 +79,9 @@ We have moved away from `config.json` to a Relational Model:
 
 - [x] Initial Project Scaffold
 - [x] Database Models & Auto-Migration
-- [ ] Port `actions/` logic from Python to Go
-- [ ] Implement `Polling` worker in Go
-- [ ] Build React Flow Interface
+- [x] Port `actions/` logic from Python to Go (Template-based Actions)
+- [x] Implement `Polling` worker in Go (Master Poller Mode)
+- [x] Build React Workflow Editor
+- [x] Implement OAuth2 & Rate Limiting
+- [x] Data Retention & Capacity Planning
+
