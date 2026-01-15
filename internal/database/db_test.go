@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIntegrationHooks(t *testing.T) {
@@ -12,13 +13,22 @@ func TestIntegrationHooks(t *testing.T) {
 	os.Setenv("ENCRYPTION_KEY", "12345678901234567890123456789012")
 
 	InitDB(":memory:")
+
+	// Create a Tenant first to satisfy FK constraint
+	tenant := Tenant{Name: "Test Tenant", Description: "For Unit Tests"}
+	err := DB.Create(&tenant).Error
+	require.NoError(t, err)
 	
 	// Create integration with sensitive data
 	creds := `{"password":"secret"}`
-	integ := Integration{Name: "Secure Service", Credentials: creds}
+	integ := Integration{
+		Name:        "Secure Service",
+		Credentials: creds,
+		TenantID:    tenant.ID,
+	}
 	
-	err := DB.Create(&integ).Error
-	assert.NoError(t, err)
+	err = DB.Create(&integ).Error
+	require.NoError(t, err)
 
 	// Verify it's stored encrypted (by raw SQL or by checking value before AfterFind runs if possible, but AfterFind runs on query)
 	// Actually, GORM hooks modify the struct in place.
