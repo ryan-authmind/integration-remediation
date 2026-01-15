@@ -1,0 +1,83 @@
+[
+  {
+    "tenant_id": 1,
+    "name": "Create ServiceNow Incident",
+    "vendor": "ServiceNow",
+    "integration_name": "ServiceNow",
+    "method": "POST",
+    "path_template": "/api/now/table/incident",
+    "body_template": "{\n    \"caller_id\": \"{{.UserEmail}}\",\n    \"short_description\": \"AuthMind [{{.IssueType}}]: {{.Title | default \\\"Security Issue Detected\\\"}}\",\n    \"description\": \"AuthMind Summary: {{.Details.Summary}}\\n\\nIssue Details:\\n{{range .Details.Results}}--- \\nMessage: {{.Message}}\\nRisk: {{.Risk}}\\nIncidents: {{.Incidents}}\\n{{end}}\\n\\nFooter: {{.Footer}}\",\n    \"impact\": \"{{if eq .Severity 4}}1{{else if eq .Severity 3}}1{{else if eq .Severity 2}}2{{else}}3{{end}}\",\n    \"urgency\": \"{{if eq .Severity 4}}1{{else if eq .Severity 3}}2{{else if eq .Severity 2}}2{{else}}3{{end}}\",\n    \"work_notes\": \"AuthMind Issue ID: {{.IssueID}}\\nInitial Risk Score: {{.Risk}}\\nFirst Seen: {{.FirstSeen}}\\nEvent Timestamp: {{.Timestamp}}\\nIssue Keys: {{.IssueKeys}}\",\n    \"contact_type\": \"automated\",\n    \"category\": \"Security\"\n}\n"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Notify Security Slack",
+    "vendor": "Slack",
+    "integration_name": "Slack",
+    "method": "POST",
+    "path_template": "/services/T00/B00/XXX",
+    "body_template": "{\n\t\"blocks\": [\n\t\t{\n\t\t\t\"type\": \"header\",\n\t\t\t\"text\": {\n\t\t\t\t\"type\": \"plain_text\",\n\t\t\t\t\"text\": \"🛡️ Security Issue: {{.IssueType | jsonescape}}\",\n\t\t\t\t\"emoji\": true\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"text\": {\n\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\"text\": \"*Description:*\\n{{.IssueMessage | jsonescape}}\"\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Risk Level:*\\n{{.Risk | jsonescape}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Domain:*\\n{{index .IssueKeys \\\"domain\\\" | default \\\"N/A\\\" | jsonescape}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Total Flows:*\\n{{.FlowCount}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Incidents:*\\n{{.IncidentCount}}\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"divider\"\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"text\": {\n\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\"text\": \"*Primary Incident Details*\"\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Identity:*\\n👤 {{.UserEmail | jsonescape}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Asset:*\\n🖥️ {{index .IssueKeys \\\"asset_name\\\" | default \\\"N/A\\\" | jsonescape}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Status:*\\n🟢 Open\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"*Site Code:*\\n{{index .IssueKeys \\\"site_code\\\" | default \\\"N/A\\\" | jsonescape}}\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"context\",\n\t\t\t\"elements\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"📅 *First seen:* {{.FirstSeen | jsonescape}}  |  *Last seen:* {{.Timestamp | jsonescape}}\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"actions\",\n\t\t\t\"elements\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"button\",\n\t\t\t\t\t\"text\": {\n\t\t\t\t\t\t\"type\": \"plain_text\",\n\t\t\t\t\t\t\"text\": \"View Issue in Console\",\n\t\t\t\t\t\t\"emoji\": true\n\t\t\t\t\t},\n\t\t\t\t\t\"style\": \"primary\",\n\t\t\t\t\t\"url\": \"https://console.authmind.com/issues?q=id%3A{{.IssueID | jsonescape}}\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"button\",\n\t\t\t\t\t\"text\": {\n\t\t\t\t\t\t\"type\": \"plain_text\",\n\t\t\t\t\t\t\"text\": \"Incident Details\",\n\t\t\t\t\t\t\"emoji\": true\n\t\t\t\t\t},\n\t\t\t\t\t\"url\": \"{{.IncidentsURL | jsonescape}}\"\n\t\t\t\t}\n\t\t\t]\n\t\t}\n\t]\n}\n"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Notify Security Teams",
+    "vendor": "Microsoft",
+    "integration_name": "Microsoft Teams",
+    "method": "POST",
+    "path_template": "/webhook/XXX",
+    "body_template": "{\"type\":\"message\",\"attachments\":[{\"contentType\":\"application/vnd.microsoft.card.adaptive\",\"content\":{\"type\":\"AdaptiveCard\",\"body\":[{\"type\":\"TextBlock\",\"text\":\"{{.Title}}\"}]}}] }"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Disable AD User",
+    "vendor": "Microsoft",
+    "integration_name": "On-Prem AD",
+    "method": "POWERSHELL",
+    "path_template": "",
+    "body_template": "Import-Module ActiveDirectory; Disable-ADAccount -Identity '{{.UserEmail}}'"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Force AD Password Change",
+    "vendor": "Microsoft",
+    "integration_name": "On-Prem AD",
+    "method": "POWERSHELL",
+    "path_template": "",
+    "body_template": "Import-Module ActiveDirectory; Set-ADUser -Identity '{{.UserEmail}}' -ChangePasswordAtLogon "
+  },
+  {
+    "tenant_id": 1,
+    "name": "Suspend Okta User",
+    "vendor": "Okta",
+    "integration_name": "Okta",
+    "method": "POST",
+    "path_template": "/api/v1/users/{{.UserEmail}}/lifecycle/suspend",
+    "body_template": "{}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Revoke Okta Sessions",
+    "vendor": "Okta",
+    "integration_name": "Okta",
+    "method": "DELETE",
+    "path_template": "/api/v1/users/{{.UserEmail}}/sessions",
+    "body_template": "{}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Send Torq Event",
+    "vendor": "Torq",
+    "integration_name": "Torq",
+    "method": "POST",
+    "path_template": "/v1/webhooks/XXX",
+    "body_template": "{\"event_source\":\"AuthMind\",\"affected_entities\":[\"{{.UserEmail}}\"]}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Ingest SecOps Event",
+    "vendor": "Google",
+    "integration_name": "Google SecOps",
+    "method": "POST",
+    "path_template": "/v1/ingestwebhooks/XXX",
+    "body_template": "{\"principal\":{\"user\":{\"userid\":\"{{.UserEmail}}\"}}}"
+  }
+]

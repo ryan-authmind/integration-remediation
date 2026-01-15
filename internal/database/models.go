@@ -7,6 +7,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// Tenant represents a customer or distinct environment
+type Tenant struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Name        string `gorm:"uniqueIndex" json:"name"`
+	Description string `json:"description"`
+	APIKey      *string `gorm:"uniqueIndex" json:"api_key"` // Pointer allows NULLs to coexist in unique index
+}
+
 // Integration represents a 3rd party service provider
 type Integration struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
@@ -14,7 +26,10 @@ type Integration struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Name            string `gorm:"uniqueIndex" json:"name"`
+	TenantID uint   `gorm:"index:idx_tenant_name,unique" json:"tenant_id"` // Multi-tenancy
+    Tenant   Tenant `gorm:"foreignKey:TenantID" json:"tenant"`
+	Name     string `gorm:"index:idx_tenant_name,unique" json:"name"` 
+
 	Type            string `json:"type"`      // e.g., "REST", "SLACK", "EMAIL"
 	BaseURL         string `json:"base_url"`  // Encrypted if sensitive
 	AuthType        string `json:"auth_type"` // "none", "basic", "bearer", "apikey", "oauth2"
@@ -58,7 +73,10 @@ type ActionDefinition struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	Name          string `gorm:"uniqueIndex" json:"name"`
+	TenantID uint   `gorm:"index" json:"tenant_id"`
+    Tenant   Tenant `gorm:"foreignKey:TenantID" json:"tenant"`
+	Name     string `gorm:"index" json:"name"` // Removed global unique index
+
 	Vendor        string `json:"vendor"`
 	IntegrationID uint   `json:"integration_id"`
 
@@ -79,11 +97,18 @@ type Workflow struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Name        string `gorm:"uniqueIndex" json:"name"`
+	TenantID uint   `gorm:"index" json:"tenant_id"`
+    Tenant   Tenant `gorm:"foreignKey:TenantID" json:"tenant"`
+	Name     string `gorm:"index" json:"name"` // Removed global unique index
+
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
 
 	TriggerType string `json:"trigger_type"`
+    MinSeverity string `gorm:"default:'Low'" json:"min_severity"` // Low, Medium, High, Critical
+
+    // Pollers associated with this workflow (Many-to-Many)
+    AuthMindPollers []Integration `gorm:"many2many:workflow_pollers;" json:"pollers"`
 
 	Steps []WorkflowStep `gorm:"foreignKey:WorkflowID" json:"steps"`
 }
@@ -105,6 +130,8 @@ type Job struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 
+	TenantID   uint     `gorm:"index" json:"tenant_id"`
+    Tenant     Tenant   `gorm:"foreignKey:TenantID" json:"tenant"`
 	WorkflowID uint     `gorm:"index:idx_wf_issue,unique" json:"workflow_id"`
 	Workflow   Workflow `gorm:"foreignKey:WorkflowID" json:"workflow"`
 	Status     string   `json:"status"` // "pending", "running", "completed", "failed"
@@ -148,8 +175,9 @@ type MessageTemplate struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	IssueType string `gorm:"index:idx_issue_lang,unique" json:"issue_type"` // e.g., "Compromised User"
-	Language  string `gorm:"index:idx_issue_lang,unique" json:"language"`   // e.g., "en", "he"
+	TenantID  uint   `gorm:"index:idx_tenant_issue_lang,unique" json:"tenant_id"`
+	IssueType string `gorm:"index:idx_tenant_issue_lang,unique" json:"issue_type"` // e.g., "Compromised User"
+	Language  string `gorm:"index:idx_tenant_issue_lang,unique" json:"language"`   // e.g., "en", "he"
 
 	Title   string `json:"title"`
 	Message string `json:"message"`

@@ -23,16 +23,22 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Tooltip
+  Tooltip,
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import SecurityIcon from '@mui/icons-material/Security';
 import AddIcon from '@mui/icons-material/Add';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import { useTenant } from '../context/TenantContext';
 
 interface Integration {
   id: number;
+  tenant_id: number;
+  tenant?: { name: string };
   name: string;
   type: string;
   base_url: string;
@@ -60,6 +66,7 @@ const getVendorLogo = (name: string) => {
 };
 
 export default function Integrations() {
+  const { selectedTenant } = useTenant();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Integration | null>(null);
@@ -82,18 +89,35 @@ export default function Integrations() {
   });
 
   const [notification, setNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(false);
 
   useEffect(() => {
     fetchIntegrations();
-  }, []);
+  }, [selectedTenant]);
 
   const fetchIntegrations = async () => {
     try {
-      const res = await client.get('/integrations');
+      const res = await client.get('/integrations', {
+          headers: { 'X-Tenant-ID': selectedTenant.toString() }
+      });
       setIntegrations(res.data);
     } catch (error) {
       console.error("Failed to fetch integrations", error);
     }
+  };
+
+  const handleBootstrap = async () => {
+      if (selectedTenant === 0) return;
+      setBootstrapping(true);
+      try {
+          await client.post(`/admin/tenants/${selectedTenant}/bootstrap`);
+          setNotification({ msg: 'Tenant bootstrapped successfully with standard integrations and actions', type: 'success' });
+          fetchIntegrations();
+      } catch (err) {
+          setNotification({ msg: 'Bootstrap failed', type: 'error' });
+      } finally {
+          setBootstrapping(false);
+      }
   };
 
   const handleAddNew = () => {
@@ -157,14 +181,17 @@ export default function Integrations() {
         token_endpoint: formData.token_endpoint,
         rotation_interval_days: formData.rotation_interval,
         polling_interval: formData.polling_interval,
-        enabled: selected ? selected.enabled : true
+        enabled: selected ? selected.enabled : true,
+        is_available: selected ? selected.is_available : true,
+        consecutive_failures: selected ? selected.consecutive_failures : 0
     };
 
     try {
+        const headers = { 'X-Tenant-ID': selectedTenant.toString() };
         if (selected) {
-            await client.put('/integrations', { ...payload, id: selected.id });
+            await client.put('/integrations', { ...payload, id: selected.id }, { headers });
         } else {
-            await client.post('/integrations', payload);
+            await client.post('/integrations', payload, { headers });
         }
         setNotification({ msg: `Integration ${selected ? 'updated' : 'created'} successfully`, type: 'success' });
         setOpen(false);
@@ -177,7 +204,9 @@ export default function Integrations() {
   const handleToggle = async (integration: Integration) => {
       try {
           const updated = { ...integration, enabled: !integration.enabled };
-          await client.put('/integrations', updated);
+          await client.put('/integrations', updated, {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           setIntegrations(prev => prev.map(i => i.id === integration.id ? updated : i));
       } catch (e) {
           setNotification({ msg: 'Failed to toggle', type: 'error' });
@@ -187,7 +216,9 @@ export default function Integrations() {
   const handleReset = async (integration: Integration) => {
       try {
           const updated = { ...integration, is_available: true, consecutive_failures: 0 };
-          await client.put('/integrations', updated);
+          await client.put('/integrations', updated, {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           setNotification({ msg: `Connection reset for ${integration.name}`, type: 'success' });
           fetchIntegrations();
       } catch (e) {
@@ -242,20 +273,56 @@ export default function Integrations() {
       </Box>
 
       <Grid container spacing={3}>
+        {integrations.length === 0 && selectedTenant !== 0 && (
+            <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 6, textAlign: 'center', bgcolor: 'action.hover', borderStyle: 'dashed' }}>
+                    <CloudQueueIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>No Integrations Found</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                        This tenant is empty. You can start from scratch or bootstrap it with standard templates.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                        <Button 
+                            variant="contained" 
+                            color="secondary" 
+                            startIcon={bootstrapping ? <CircularProgress size={20} color="inherit" /> : <AutoFixHighIcon />}
+                            onClick={handleBootstrap}
+                            disabled={bootstrapping}
+                        >
+                            Bootstrap from Templates
+                        </Button>
+                        <Button variant="outlined" startIcon={<AddIcon />} onClick={handleAddNew}>
+                            Add Manually
+                        </Button>
+                    </Box>
+                </Paper>
+            </Grid>
+        )}
         {integrations.map((item) => (
           <Grid item xs={12} md={6} lg={4} key={item.id}>
             <Card variant="outlined">
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    {getVendorLogo(item.name) ? (
-                        <img 
-                            src={getVendorLogo(item.name)!} 
-                            alt={item.name} 
-                            style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} 
-                        />
-                    ) : (
-                        <CloudQueueIcon color="primary" />
-                    )}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {getVendorLogo(item.name) ? (
+                            <img 
+                                src={getVendorLogo(item.name)!} 
+                                alt={item.name} 
+                                style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} 
+                            />
+                        ) : (
+                            <CloudQueueIcon color="primary" />
+                        )}
+                        {selectedTenant === 0 && item.tenant && (
+                            <Chip 
+                                label={item.tenant.name} 
+                                size="small" 
+                                color="secondary" 
+                                variant="filled" 
+                                sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} 
+                            />
+                        )}
+                    </Box>
                     <Chip label={item.auth_type.toUpperCase()} size="small" variant="outlined" />
                 </Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{item.name}</Typography>
@@ -316,7 +383,14 @@ export default function Integrations() {
                         label="Friendly Name" 
                         fullWidth 
                         value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        onChange={(e) => {
+                            const newName = e.target.value;
+                            let extra = {};
+                            if (formData.auth_type === 'oauth2' && newName.toLowerCase().includes('slack') && !formData.token_endpoint) {
+                                extra = { token_endpoint: 'https://slack.com/api/oauth.v2.access' };
+                            }
+                            setFormData({...formData, name: newName, ...extra});
+                        }}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -347,7 +421,14 @@ export default function Integrations() {
                         <Select
                             value={formData.auth_type}
                             label="Authentication Type"
-                            onChange={(e) => setFormData({...formData, auth_type: e.target.value})}
+                            onChange={(e) => {
+                                const newType = e.target.value;
+                                let extra = {};
+                                if (newType === 'oauth2' && formData.name.toLowerCase().includes('slack') && !formData.token_endpoint) {
+                                    extra = { token_endpoint: 'https://slack.com/api/oauth.v2.access' };
+                                }
+                                setFormData({...formData, auth_type: newType, ...extra});
+                            }}
                         >
                             <MenuItem value="none">None</MenuItem>
                             <MenuItem value="basic">Basic (User/Pass)</MenuItem>

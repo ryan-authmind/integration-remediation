@@ -37,6 +37,7 @@ func InitDB(dbPath string) {
 
 	// Auto-Migrate Schema
 	err = DB.AutoMigrate(
+        &Tenant{},
 		&Integration{},
 		&ActionDefinition{},
 		&Workflow{},

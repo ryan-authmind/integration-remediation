@@ -2,6 +2,9 @@
 remediation-server
 server
 
+# Distribution / Build Output
+tenant/
+
 # Environment variables
 .env
 

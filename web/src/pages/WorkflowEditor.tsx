@@ -27,11 +27,18 @@ import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import { useTenant } from '../context/TenantContext';
+import { Chip, OutlinedInput } from '@mui/material';
 
 interface ActionDefinition {
     id: number;
     name: string;
     vendor: string;
+}
+
+interface Integration {
+    id: number;
+    name: string;
 }
 
 interface WorkflowStep {
@@ -48,42 +55,65 @@ interface Workflow {
   description: string;
   enabled: boolean;
   trigger_type: string;
+  min_severity: string;
+  pollers: Integration[];
   steps: WorkflowStep[];
 }
 
 export default function WorkflowEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { selectedTenant } = useTenant();
   const isNew = id === 'new';
   
   const [availableActions, setAvailableActions] = useState<ActionDefinition[]>([]);
+  const [availablePollers, setAvailablePollers] = useState<Integration[]>([]);
   const [workflow, setWorkflow] = useState<Workflow>({
       name: '',
       description: '',
       enabled: true,
       trigger_type: 'AUTHMIND_POLL',
+      min_severity: 'Low',
+      pollers: [],
       steps: []
   });
 
   useEffect(() => {
     fetchAvailableActions();
+    fetchAvailablePollers();
     if (!isNew && id) {
         fetchWorkflow(id);
     }
-  }, [id]);
+  }, [id, selectedTenant]);
 
   const fetchAvailableActions = async () => {
     try {
-        const res = await client.get('/actions');
+        const res = await client.get('/actions', {
+            headers: { 'X-Tenant-ID': selectedTenant.toString() }
+        });
         setAvailableActions(res.data);
     } catch (error) {
         console.error("Failed to load actions", error);
     }
   };
 
+  const fetchAvailablePollers = async () => {
+      try {
+          const res = await client.get('/integrations', {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
+          // Filter only AuthMind integrations
+          setAvailablePollers(res.data.filter((i: any) => i.name.toLowerCase().includes('authmind')));
+      } catch (err) {
+          console.error("Failed to load pollers", err);
+      }
+  };
+
   const fetchWorkflow = async (workflowId: string) => {
     try {
-        const res = await client.get('/workflows');
+        const res = await client.get('/workflows', {
+            headers: { 'X-Tenant-ID': selectedTenant.toString() }
+        });
         const found = res.data.find((w: any) => w.id === parseInt(workflowId));
         if (found) setWorkflow(found);
     } catch (error) {
@@ -93,8 +123,10 @@ export default function WorkflowEditor() {
 
   const handleSave = async () => {
     try {
+        const headers = { 'X-Tenant-ID': selectedTenant.toString() };
         const payload = {
             ...workflow,
+            pollers: workflow.pollers.map(p => ({ id: p.id })), // Simplified for many-to-many update
             steps: workflow.steps.map(s => ({
                 action_definition_id: s.action_definition_id,
                 order: s.order,
@@ -103,9 +135,9 @@ export default function WorkflowEditor() {
         };
 
         if (isNew) {
-            await client.post('/workflows', payload);
+            await client.post('/workflows', payload, { headers });
         } else {
-            await client.put('/workflows', payload);
+            await client.put('/workflows', payload, { headers });
         }
         navigate('/workflows');
     } catch (error) {
@@ -212,6 +244,59 @@ export default function WorkflowEditor() {
                                     <MenuItem value="WEBHOOK">Generic Webhook</MenuItem>
                                     <MenuItem value="MANUAL">Manual Trigger</MenuItem>
                                 </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth>
+                                <InputLabel>Minimum Severity Threshold</InputLabel>
+                                <Select
+                                    value={workflow.min_severity || 'Low'}
+                                    label="Minimum Severity Threshold"
+                                    onChange={(e) => setWorkflow({...workflow, min_severity: e.target.value})}
+                                >
+                                    <MenuItem value="Low">Low (Runs on everything)</MenuItem>
+                                    <MenuItem value="Medium">Medium (Medium, High, Critical)</MenuItem>
+                                    <MenuItem value="High">High (High, Critical)</MenuItem>
+                                    <MenuItem value="Critical">Critical Only</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12}>
+                            <FormControl fullWidth>
+                                <InputLabel>Associated Pollers</InputLabel>
+                                <Select
+                                    multiple
+                                    value={workflow.pollers?.map(p => p.id) || []}
+                                    onChange={(e) => {
+                                        const ids = e.target.value as number[];
+                                        const selected = availablePollers.filter(p => ids.includes(p.id));
+                                        setWorkflow({ ...workflow, pollers: selected });
+                                    }}
+                                    input={<OutlinedInput label="Associated Pollers" />}
+                                    renderValue={(selectedIds) => (
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                            {(selectedIds as number[]).map((id) => {
+                                                const poller = availablePollers.find(p => p.id === id) || workflow.pollers.find(p => p.id === id);
+                                                return <Chip key={id} label={poller?.name || id} size="small" color="primary" variant="outlined" sx={{ fontWeight: 600 }} />;
+                                            })}
+                                        </Box>
+                                    )}
+                                >
+                                    {availablePollers.map((p) => (
+                                        <MenuItem key={p.id} value={p.id}>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.name}</Typography>
+                                                {selectedTenant === 0 && (
+                                                    <Typography variant="caption" color="text.secondary">Tenant: { (p as any).tenant?.name || 'Unknown'}</Typography>
+                                                )}
+                                            </Box>
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                    Only issues detected by these specific pollers will trigger this workflow.
+                                </Typography>
                             </FormControl>
                         </Grid>
                     </Grid>

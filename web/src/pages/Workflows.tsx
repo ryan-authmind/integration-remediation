@@ -26,28 +26,46 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { useNavigate } from 'react-router-dom';
+import { useTenant } from '../context/TenantContext';
 
 interface Workflow {
   id: number;
+  tenant_id: number;
+  tenant?: { name: string };
   name: string;
   description: string;
   enabled: boolean;
   trigger_type: string;
-  steps: any[]; // We'll display count
+  min_severity: string;
+  pollers: Array<{ id: number, name: string }>;
+  steps: Array<{ id?: number, action_type?: string, definition?: { name: string } }>;
 }
 
+const getSeverityColor = (sev: string) => {
+    switch (sev) {
+        case 'Critical': return 'error';
+        case 'High': return 'warning';
+        case 'Medium': return 'info';
+        case 'Low': return 'success';
+        default: return 'default';
+    }
+};
+
 export default function Workflows() {
+  const { selectedTenant } = useTenant();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchWorkflows();
-  }, []);
+  }, [selectedTenant]);
 
   const fetchWorkflows = async () => {
     try {
-      const res = await client.get('/workflows');
+      const res = await client.get('/workflows', {
+          headers: { 'X-Tenant-ID': selectedTenant.toString() }
+      });
       setWorkflows(res.data);
     } catch (error) {
       console.error("Failed to fetch workflows", error);
@@ -57,7 +75,9 @@ export default function Workflows() {
   const handleToggleEnabled = async (wf: Workflow) => {
       try {
           const updated = { ...wf, enabled: !wf.enabled };
-          await client.put(`/workflows`, updated);
+          await client.put(`/workflows`, updated, {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           fetchWorkflows();
       } catch (err) {
           console.error("Toggle failed", err);
@@ -67,7 +87,9 @@ export default function Workflows() {
   const handleDelete = async () => {
       if (!deleteId) return;
       try {
-          await client.delete(`/workflows/${deleteId}`);
+          await client.delete(`/workflows/${deleteId}`, {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           setDeleteId(null);
           fetchWorkflows();
       } catch (err) {
@@ -99,8 +121,11 @@ export default function Workflows() {
         <Table sx={{ minWidth: 650 }} aria-label="workflow table">
           <TableHead sx={{ bgcolor: 'action.hover' }}>
             <TableRow>
+              {selectedTenant === 0 && <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>}
               <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Trigger</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Associated Pollers</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Severity Threshold</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Steps</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
@@ -109,6 +134,11 @@ export default function Workflows() {
           <TableBody>
             {workflows.map((row) => (
               <TableRow key={row.id} hover>
+                {selectedTenant === 0 && (
+                    <TableCell>
+                        <Chip label={row.tenant?.name || 'Unknown'} size="small" color="secondary" sx={{ fontWeight: 700, fontSize: '0.65rem' }} />
+                    </TableCell>
+                )}
                 <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>
                   {row.name}
                   <Typography variant="caption" display="block" color="text.secondary">
@@ -116,6 +146,27 @@ export default function Workflows() {
                   </Typography>
                 </TableCell>
                 <TableCell>{row.trigger_type}</TableCell>
+                <TableCell>
+                    {row.pollers && row.pollers.length > 0 ? row.pollers.map((p, idx) => (
+                        <Chip 
+                            key={idx} 
+                            label={p.name} 
+                            size="small" 
+                            variant="outlined" 
+                            color="info"
+                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem', fontWeight: 600 }} 
+                        />
+                    )) : <Typography variant="caption" color="text.disabled">No pollers assigned</Typography>}
+                </TableCell>
+                <TableCell>
+                    <Chip 
+                        label={row.min_severity || 'Low'} 
+                        size="small" 
+                        color={getSeverityColor(row.min_severity || 'Low') as any}
+                        variant="filled"
+                        sx={{ fontWeight: 700, borderRadius: 1 }}
+                    />
+                </TableCell>
                 <TableCell>
                     {row.steps && row.steps.length > 0 ? row.steps.map((s, idx) => (
                         <Chip 

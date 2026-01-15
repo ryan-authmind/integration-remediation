@@ -32,9 +32,12 @@ import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
 import Editor from '@monaco-editor/react';
+import { useTenant } from '../context/TenantContext';
 
 interface ActionDefinition {
   id?: number;
+  tenant_id?: number;
+  tenant?: { name: string };
   name: string;
   vendor: string;
   method: string;
@@ -68,9 +71,11 @@ const TEMPLATE_VARIABLES = [
     { label: '.Message', detail: 'Localized Message', documentation: 'Body from the localized Message Template.' },
     { label: '.Footer', detail: 'Localized Footer', documentation: 'Footer from the localized Message Template.' },
     { label: '| default', detail: 'Fallback Helper', documentation: 'Usage: {{.Variable | default "my fallback"}}. Useful for missing Detail fields.' },
+    { label: '| jsonescape', detail: 'JSON Safety Helper', documentation: 'Usage: {{.Variable | jsonescape}}. Essential for strings inside JSON payloads to handle quotes and newlines.' },
 ];
 
 export default function ActionTemplates() {
+  const { selectedTenant } = useTenant();
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [open, setOpen] = useState(false);
@@ -96,7 +101,7 @@ export default function ActionTemplates() {
   useEffect(() => {
     fetchActions();
     fetchIntegrations();
-  }, []);
+  }, [selectedTenant]);
 
   // Configure Monaco Autocomplete
   const handleEditorWillMount = (monaco: any) => {
@@ -141,7 +146,9 @@ export default function ActionTemplates() {
 
   const fetchActions = async () => {
     try {
-      const res = await client.get('/actions');
+      const res = await client.get('/actions', {
+          headers: { 'X-Tenant-ID': selectedTenant.toString() }
+      });
       setActions(res.data);
     } catch (error) {
       console.error("Failed to fetch actions", error);
@@ -150,7 +157,9 @@ export default function ActionTemplates() {
 
   const fetchIntegrations = async () => {
       try {
-          const res = await client.get('/integrations');
+          const res = await client.get('/integrations', {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           setIntegrations(res.data);
       } catch (error) {
           console.error("Failed to fetch integrations", error);
@@ -172,7 +181,9 @@ export default function ActionTemplates() {
   const handleSave = async () => {
     if (!formData) return;
     try {
-      await client.put('/actions', formData);
+      await client.put('/actions', formData, {
+          headers: { 'X-Tenant-ID': selectedTenant.toString() }
+      });
       setOpen(false);
       fetchActions();
     } catch (error) {
@@ -194,7 +205,9 @@ export default function ActionTemplates() {
       }
 
       try {
-          await client.post('/actions', payload);
+          await client.post('/actions', payload, {
+              headers: { 'X-Tenant-ID': selectedTenant.toString() }
+          });
           setCreateOpen(false);
           fetchActions();
           // Reset form
@@ -237,6 +250,7 @@ export default function ActionTemplates() {
         <Table>
           <TableHead sx={{ bgcolor: 'action.hover' }}>
             <TableRow>
+              {selectedTenant === 0 && <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>}
               <TableCell sx={{ fontWeight: 700 }}>Action Name</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Vendor</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Method</TableCell>
@@ -247,6 +261,11 @@ export default function ActionTemplates() {
           <TableBody>
             {actions.map((row) => (
               <TableRow key={row.id} hover>
+                {selectedTenant === 0 && (
+                    <TableCell>
+                        <Chip label={row.tenant?.name || 'Unknown'} size="small" color="secondary" sx={{ fontWeight: 700, fontSize: '0.65rem' }} />
+                    </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 600 }}>{row.name}</TableCell>
                 <TableCell><Chip label={row.vendor} size="small" variant="outlined" color="primary" sx={{ fontWeight: 600 }} /></TableCell>
                 <TableCell><code style={{ color: '#0062FF', fontWeight: 700 }}>{row.method}</code></TableCell>
@@ -483,33 +502,42 @@ export default function ActionTemplates() {
 
               <Typography variant="h6" gutterBottom color="primary">Example: Creating a rich Slack message</Typography>
               <Typography variant="body2" paragraph>
-                  You can use the <code>.Details.Summary</code> to provide instant context to your security team. 
-                  Below is a demo of a Slack payload using Block Kit:
+                  Below is a standard Slack payload using Block Kit, including primary issue data and incident details:
               </Typography>
 
               <Paper sx={{ p: 2, bgcolor: '#1e1e1e', color: '#d4d4d4', fontFamily: 'monospace', fontSize: '0.8rem', mb: 2 }}>
                   <pre style={{ margin: 0 }}>
 {`{
-  "text": "AuthMind Alert: {{.IssueType}}",
   "blocks": [
     {
       "type": "header",
-      "text": { "type": "plain_text", "text": "🛡️ {{.IssueType}}" }
+      "text": { "type": "plain_text", "text": "🛡️ Security Issue: {{.IssueType | jsonescape}}" }
     },
     {
       "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*User:* {{.UserEmail}}\\n*Risk:* {{.Risk}}\\n*Summary:* {{.Details.Summary}}\\n*Tags:* {{range $k, $v := .IssueKeys}} [{{$k}}: {{$v}}] {{end}}"
-      }
+      "text": { "type": "mrkdwn", "text": "*Description:*\\n{{.IssueMessage | jsonescape}}" }
+    },
+    {
+      "type": "section",
+      "fields": [
+        { "type": "mrkdwn", "text": "*Risk Level:*\\n{{.Risk | jsonescape}}" },
+        { "type": "mrkdwn", "text": "*Total Flows:*\\n{{.FlowCount}}" }
+      ]
+    },
+    {
+      "type": "section",
+      "fields": [
+        { "type": "mrkdwn", "text": "*Identity:*\\n👤 {{.UserEmail | jsonescape}}" },
+        { "type": "mrkdwn", "text": "*Asset:*\\n🖥️ {{index .IssueKeys \"asset_name\" | default \"N/A\" | jsonescape}}" }
+      ]
     },
     {
       "type": "actions",
       "elements": [
         {
           "type": "button",
-          "text": { "type": "plain_text", "text": "View Incident" },
-          "url": "{{.IncidentsURL}}",
+          "text": { "type": "plain_text", "text": "View in Console" },
+          "url": "https://console.authmind.com/issues?q=id%3A{{.IssueID | jsonescape}}",
           "style": "primary"
         }
       ]

@@ -22,6 +22,8 @@ func (m *MockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func setupTestDB() {
 	// Initialize in-memory database for testing
 	database.InitDB(":memory:")
+    // Create default tenant for tests
+    database.DB.FirstOrCreate(&database.Tenant{ID: 1, Name: "Default Tenant"})
 }
 
 func TestExecuteREST_Success(t *testing.T) {

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
 import AppBar from '@mui/material/AppBar';
@@ -12,26 +11,40 @@ import Container from '@mui/material/Box';
 // Icons
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import IntegrationInstructionsIcon from '@mui/icons-material/IntegrationInstructions';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ListAltIcon from '@mui/icons-material/ListAlt';
+import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 
 import { ColorModeContext } from '../context/ColorModeContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTenant } from '../context/TenantContext';
+import { MenuItem, Select, Tooltip } from '@mui/material';
 
 interface LayoutProps {
     children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const theme = useTheme();
   const colorMode = React.useContext(ColorModeContext);
+  const { selectedTenant, setSelectedTenant, tenants, loading } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const getThemeIcon = () => {
+      switch (colorMode.mode) {
+          case 'light': return <Brightness7Icon />;
+          case 'dark': return <Brightness4Icon />;
+          case 'system': return <SettingsBrightnessIcon />;
+          default: return <Brightness7Icon />;
+      }
+  };
+
   const menuItems = [
       { text: 'Dashboard', icon: <DashboardIcon sx={{ fontSize: 20 }} />, path: '/' },
+      { text: 'Tenants', icon: <CorporateFareIcon sx={{ fontSize: 20 }} />, path: '/tenants' },
       { text: 'Integrations', icon: <IntegrationInstructionsIcon sx={{ fontSize: 20 }} />, path: '/integrations' },
       { text: 'Action Templates', icon: <ListAltIcon sx={{ fontSize: 20 }} />, path: '/actions' },
       { text: 'Workflows', icon: <AccountTreeIcon sx={{ fontSize: 20 }} />, path: '/workflows' },
@@ -85,12 +98,37 @@ export default function Layout({ children }: LayoutProps) {
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {!loading && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 3, gap: 1 }}>
+                    <CorporateFareIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                    <Select
+                        size="small"
+                        value={selectedTenant}
+                        onChange={(e) => setSelectedTenant(e.target.value as number)}
+                        variant="standard"
+                        disableUnderline
+                        sx={{ 
+                            color: 'white', 
+                            fontWeight: 700, 
+                            fontSize: '0.85rem',
+                            '& .MuiSelect-icon': { color: 'white' }
+                        }}
+                    >
+                        <MenuItem value={0}>All Tenants</MenuItem>
+                        {tenants.map(t => (
+                            <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                        ))}
+                    </Select>
+                </Box>
+            )}
             <Typography variant="body2" sx={{ mr: 2, fontWeight: 600, opacity: 0.9 }}>
                 Integration Engine
             </Typography>
-            <IconButton onClick={colorMode.toggleColorMode} color="inherit">
-                {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
+            <Tooltip title={`Current: ${colorMode.mode}`}>
+                <IconButton onClick={colorMode.toggleColorMode} color="inherit">
+                    {getThemeIcon()}
+                </IconButton>
+            </Tooltip>
           </Box>
         </Toolbar>
       </AppBar>
