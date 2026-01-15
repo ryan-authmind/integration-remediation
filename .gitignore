@@ -1,6 +1,6 @@
 # Binaries
 remediation-server
-server
+/server
 
 # Distribution / Build Output
 tenant/
