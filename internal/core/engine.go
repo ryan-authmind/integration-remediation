@@ -14,19 +14,23 @@ import (
 
 var GlobalEngine *Engine
 
-type Engine struct {
-	// track last run per workflow ID to manage individual frequencies
-	lastRun   map[uint]time.Time
-	lastRunMu sync.Mutex
-	
-	// Cache for trigger integration to reduce DB load
-	amIntegration *database.Integration
-	amLastFetch   time.Time
+// PollingTask represents a unit of work for the worker pool
+type PollingTask struct {
+    TenantID    uint
+    Integration database.Integration
+    Workflows   []database.Workflow
+}
 
-	// Cached workflows to prevent per-second DB hits
-	cachedWorkflows []database.Workflow
-	cacheMu         sync.RWMutex
-	lastCacheSync   time.Time
+type Engine struct {
+	// Worker Pool
+    taskQueue   chan PollingTask
+    workerCount int
+    wg          sync.WaitGroup
+
+	// Cache for tracking last run per tenant/workflow
+    // Map: TenantID -> WorkflowID -> LastRunTime
+	lastRun   map[uint]map[uint]time.Time
+	lastRunMu sync.Mutex
 
     // SyncMode forces synchronous execution for testing
     SyncMode bool
@@ -34,26 +38,30 @@ type Engine struct {
 
 func NewEngine() *Engine {
 	GlobalEngine = &Engine{
-		lastRun: make(map[uint]time.Time),
+        taskQueue:   make(chan PollingTask, 1000), // Buffered channel
+        workerCount: 20,                           // Default 20 workers
+		lastRun:     make(map[uint]map[uint]time.Time),
 	}
     return GlobalEngine
 }
 
 func (e *Engine) Start() {
-	log.Println("Starting Workflow Engine (Master Poller Mode enabled)...")
+	log.Printf("Starting Workflow Engine (Multi-Tenant Mode) with %d workers...", e.workerCount)
     e.cleanupStaleJobs()
-	e.syncCache()
 
-	ticker := time.NewTicker(1 * time.Second)
-	cacheTicker := time.NewTicker(1 * time.Minute)
-	retentionTicker := time.NewTicker(24 * time.Hour) // Run retention daily
+    // Start Workers
+    for i := 0; i < e.workerCount; i++ {
+        e.wg.Add(1)
+        go e.worker(i)
+    }
+
+	ticker := time.NewTicker(10 * time.Second) // Check for work every 10s
+	retentionTicker := time.NewTicker(24 * time.Hour)
 	
 	for {
 		select {
 		case <-ticker.C:
-			e.executeEligibleWorkflows()
-		case <-cacheTicker.C:
-			e.syncCache()
+			e.schedulePollingTasks()
 		case <-retentionTicker.C:
 			e.runRetentionPolicy()
 		}
@@ -68,120 +76,112 @@ func (e *Engine) cleanupStaleJobs() {
     }
 }
 
-func (e *Engine) syncCache() {
-	e.cacheMu.Lock()
-	defer e.cacheMu.Unlock()
-
-	var integration database.Integration
-	if err := database.DB.Where("name = ?", "AuthMind API").First(&integration).Error; err == nil {
-		e.amIntegration = &integration
-		e.amLastFetch = time.Now()
-	}
-
-	var workflows []database.Workflow
-	err := database.DB.Preload("Steps").Preload("Steps.ActionDefinition").
-		Where("enabled = ? AND trigger_type = ?", true, "AUTHMIND_POLL").
-		Find(&workflows).Error
-
-	if err != nil {
-		log.Printf("[Engine] Cache sync failed: %v", err)
-		return
-	}
-
-	e.cachedWorkflows = workflows
-	e.lastCacheSync = time.Now()
+// worker consumes tasks from the channel and executes polling
+func (e *Engine) worker(id int) {
+    defer e.wg.Done()
+    for task := range e.taskQueue {
+        e.pollAuthMind(task)
+    }
 }
 
-func (e *Engine) executeEligibleWorkflows() {
-	e.cacheMu.RLock()
-	workflows := make([]database.Workflow, len(e.cachedWorkflows))
-	copy(workflows, e.cachedWorkflows)
-	am := e.amIntegration
-	e.cacheMu.RUnlock()
+// schedulePollingTasks finds eligible work across ALL tenants
+func (e *Engine) schedulePollingTasks() {
+    // 1. Fetch all tenants
+    var tenants []database.Tenant
+    if err := database.DB.Find(&tenants).Error; err != nil {
+        log.Printf("[Engine] Failed to fetch tenants: %v", err)
+        return
+    }
 
-	if am == nil || !am.Enabled {
-		return
-	}
+    for _, tenant := range tenants {
+        e.scheduleForTenant(tenant)
+    }
+}
 
-	interval := time.Duration(am.PollingInterval) * time.Second
-	if interval <= 0 {
-		interval = 60 * time.Second
-	}
+func (e *Engine) scheduleForTenant(tenant database.Tenant) {
+    // 1. Fetch enabled AuthMind integrations for this tenant
+    var pollers []database.Integration
+    if err := database.DB.Where("tenant_id = ? AND enabled = ? AND name LIKE ?", tenant.ID, true, "%AuthMind%").Find(&pollers).Error; err != nil {
+        return
+    }
+
+    if len(pollers) == 0 {
+        return
+    }
 
     e.lastRunMu.Lock()
     defer e.lastRunMu.Unlock()
 
-    // 1. Identify if we have an "All" workflow enabled
-    var allWf *database.Workflow
-    for i := range workflows {
-        if workflows[i].Name == "All" {
-            allWf = &workflows[i]
-            break
-        }
+    if _, ok := e.lastRun[tenant.ID]; !ok {
+        e.lastRun[tenant.ID] = make(map[uint]time.Time)
     }
 
-    // 2. Optimization: If "All" is present, it handles polling for everything
-    if allWf != nil {
-        last, exists := e.lastRun[allWf.ID]
-        if !exists || time.Since(last) >= interval {
-            if e.SyncMode {
-                e.pollAuthMind(*allWf, am)
-            } else {
-                go e.pollAuthMind(*allWf, am)
-            }
-            e.lastRun[allWf.ID] = time.Now()
+    // 2. For each poller, find workflows specifically associated with it
+    for _, poller := range pollers {
+        var workflows []database.Workflow
+        if err := database.DB.Preload("Steps").Preload("Steps.ActionDefinition").
+            Joins("JOIN workflow_pollers ON workflow_pollers.workflow_id = workflows.id").
+            Where("workflow_pollers.integration_id = ? AND workflows.enabled = ? AND workflows.tenant_id = ?", poller.ID, true, tenant.ID).
+            Find(&workflows).Error; err != nil {
+            continue
+        }
+
+        // FALLBACK: If no explicit pollers are assigned, we might want to check if the workflow
+        // is "Global" for the tenant. But for now, we follow the strict many-to-many requirement.
+        if len(workflows) == 0 {
+            continue
+        }
+
+        interval := time.Duration(poller.PollingInterval) * time.Second
+        if interval <= 0 { interval = 60 * time.Second }
+
+        lastRunTime, exists := e.lastRun[tenant.ID][poller.ID]
+        if !exists || time.Since(lastRunTime) >= interval {
+            e.lastRun[tenant.ID][poller.ID] = time.Now()
             
-            // Mark all other workflows as "last run now" to prevent them from polling redundantly
-            for _, wf := range workflows {
-                if wf.Name != "All" {
-                    e.lastRun[wf.ID] = time.Now()
+            task := PollingTask{
+                TenantID:    tenant.ID,
+                Integration: poller,
+                Workflows:   workflows,
+            }
+            
+            if e.SyncMode {
+                e.pollAuthMind(task)
+            } else {
+                select {
+                case e.taskQueue <- task:
+                default:
+                    log.Printf("[Engine] Task queue full, skipping poll for Tenant %d Poller %d", tenant.ID, poller.ID)
                 }
             }
         }
-        return
     }
-
-    // 3. Fallback: Standard individual polling if no "All" workflow exists
-	for _, wf := range workflows {
-		last, exists := e.lastRun[wf.ID]
-		if !exists || time.Since(last) >= interval {
-            if e.SyncMode {
-                e.pollAuthMind(wf, am)
-            } else {
-                go e.pollAuthMind(wf, am)
-            }
-			e.lastRun[wf.ID] = time.Now()
-		}
-	}
 }
 
-func (e *Engine) pollAuthMind(pollerWf database.Workflow, am *database.Integration) {
+func (e *Engine) pollAuthMind(task PollingTask) {
 	var creds struct{ Token string `json:"token"` }
-	json.Unmarshal([]byte(am.Credentials), &creds)
+	json.Unmarshal([]byte(task.Integration.Credentials), &creds)
 
-	sdk := integrations.NewAuthMindSDK(am.BaseURL, creds.Token)
-
-	stateKey := "last_id_" + pollerWf.Name
-	var state database.StateStore
-    
-    // ATOMIC INIT: Avoid UNIQUE constraint race
-	if err := database.DB.Where("key = ?", stateKey).First(&state).Error; err != nil {
-        state = database.StateStore{Key: stateKey, Value: "0"}
+				sdk := integrations.NewAuthMindSDK(task.Integration.BaseURL, creds.Token)
+			
+			    // Check state for "last_id_tenant_{id}_integration_{id}"
+				stateKey := fmt.Sprintf("last_id_t%d_i%d", task.TenantID, task.Integration.ID)
+				var state database.StateStore
+				if err := database.DB.Where("key = ?", stateKey).First(&state).Error; err != nil {        state = database.StateStore{Key: stateKey, Value: "0"}
         database.DB.Save(&state) 
     }
 
-	issues, err := sdk.GetIssues(pollerWf.Name, state.Value)
+    // Poll for EVERYTHING ("" for type) to be efficient
+	issues, err := sdk.GetIssues("", state.Value)
 	if err != nil {
-		log.Printf("[Engine] Failed to fetch issues for %s: %v", pollerWf.Name, err)
+		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
 		return
 	}
 
 	for _, issue := range issues {
 		issueIDStr := issue.IssueID
-		// 1. Resolve Identity (UserEmail) with fallbacks
 		userEmail := "Unknown"
 		if issue.IssueKeys != nil {
-			// Try common identity keys
 			for _, key := range []string{"identity_name", "user_email", "username", "email"} {
 				if val, ok := issue.IssueKeys[key].(string); ok && val != "" {
 					userEmail = val
@@ -190,29 +190,34 @@ func (e *Engine) pollAuthMind(pollerWf database.Workflow, am *database.Integrati
 			}
 		}
 
-		// 2. Identify which workflows should process this specific issue
+		// Identify matching workflows
 		var workflowsToRun []database.Workflow
-		
-		e.cacheMu.RLock()
-		for _, cachedWf := range e.cachedWorkflows {
-			if cachedWf.Name == issue.IssueType || cachedWf.Name == "All" {
-				workflowsToRun = append(workflowsToRun, cachedWf)
-			}
+        issueSevScore := issue.Severity
+
+		for _, wf := range task.Workflows {
+			// Check Name Match
+            if wf.Name != issue.IssueType && wf.Name != "All" {
+                continue
+            }
+            
+            // Check Severity
+            wfSevScore := e.severityStringToInt(wf.MinSeverity)
+            if issueSevScore < wfSevScore {
+                continue
+            }
+
+            workflowsToRun = append(workflowsToRun, wf)
 		}
-		e.cacheMu.RUnlock()
 
 		if len(workflowsToRun) > 0 {
 			details, err := sdk.GetIssueDetails(issueIDStr)
 			if err != nil {
-				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v. Proceeding with basic info.", issueIDStr, err)
-				details = &integrations.IssueDetails{
-					Results: []integrations.IssueDetailItem{
-						{Message: "Details unavailable (API Error)", Risk: "Unknown"},
-					},
-				}
+				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
+				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
 			}
 
 			contextData := map[string]interface{}{
+                "TenantID":      task.TenantID, // Inject TenantID into context
 				"IssueID":       issueIDStr,
 				"UserEmail":     userEmail,
 				"Timestamp":     time.Now().Format(time.RFC3339),
@@ -226,7 +231,7 @@ func (e *Engine) pollAuthMind(pollerWf database.Workflow, am *database.Integrati
 				"Details":       details,
 				"IssueType":     issue.IssueType,
 				"IssueKeys":     issue.IssueKeys,
-				"FirstSeen":     issue.IssueTime, // Map IssueTime to FirstSeen
+				"FirstSeen":     issue.IssueTime,
 			}
 			
 			for _, runWf := range workflowsToRun {
@@ -238,12 +243,24 @@ func (e *Engine) pollAuthMind(pollerWf database.Workflow, am *database.Integrati
 	}
 }
 
+func (e *Engine) severityStringToInt(sev string) int {
+    switch sev {
+    case "Critical": return 4
+    case "High": return 3
+    case "Medium": return 2
+    case "Low": return 1
+    default: return 1
+    }
+}
+
 func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
 	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
+    tenantID := triggerContext["TenantID"].(uint)
 	
 	contextJSON, _ := json.Marshal(triggerContext)
 
 	job := database.Job{
+        TenantID:        tenantID,
 		WorkflowID:      wf.ID,
 		AuthMindIssueID: issueID,
 		Status:          "running",
@@ -251,7 +268,10 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 	}
 
     var existing int64
-    database.DB.Model(&database.Job{}).Where("workflow_id = ? AND auth_mind_issue_id = ?", wf.ID, issueID).Count(&existing)
+    database.DB.Model(&database.Job{}).
+        Where("tenant_id = ? AND workflow_id = ? AND auth_mind_issue_id = ?", tenantID, wf.ID, issueID).
+        Count(&existing)
+        
     if existing > 0 && triggerContext["ManualRerun"] != true {
         return
     }
@@ -265,14 +285,13 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 		}
 	}
 
-	log.Printf("[Workflow:%s] Executing Workflow for %v (Issue:%s)", wf.Name, triggerContext["UserEmail"], issueID)
+	log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s)", tenantID, wf.Name, triggerContext["UserEmail"], issueID)
 
 	lang := "en"
 	if val, ok := triggerContext["Language"].(string); ok {
 		lang = val
 	}
 
-	// Resolve the issue type for template lookup (use context if available, otherwise workflow name)
 	templateIssueType := wf.Name
 	if it, ok := triggerContext["IssueType"].(string); ok && it != "" {
 		templateIssueType = it
@@ -288,18 +307,18 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 	success := true
 
 	for _, step := range wf.Steps {
-		// 1. Fetch the Action Definition to get the latest IntegrationID
+		// 1. Fetch Action Definition (Scoped by Tenant)
 		var actionDef database.ActionDefinition
-		if err := database.DB.First(&actionDef, step.ActionDefinitionID).Error; err != nil {
-			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Failed to find action definition %d: %v", step.ActionDefinitionID, err))
+		if err := database.DB.Where("id = ? AND tenant_id = ?", step.ActionDefinitionID, tenantID).First(&actionDef).Error; err != nil {
+			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Failed to find action definition %d for tenant %d: %v", step.ActionDefinitionID, tenantID, err))
 			success = false
 			break
 		}
 
-		// 2. Fetch the Integration
+		// 2. Fetch Integration (Scoped by Tenant)
 		var integration database.Integration
-		if err := database.DB.First(&integration, actionDef.IntegrationID).Error; err != nil {
-			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Failed to find integration %d: %v", actionDef.IntegrationID, err))
+		if err := database.DB.Where("id = ? AND tenant_id = ?", actionDef.IntegrationID, tenantID).First(&integration).Error; err != nil {
+			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Failed to find integration %d for tenant %d: %v", actionDef.IntegrationID, tenantID, err))
 			success = false
 			break
 		}
@@ -333,7 +352,6 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 		
 		logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
 		if len(resp) > 0 {
-			// Try to pretty print JSON for the log
 			var pretty bytes.Buffer
 			if err := json.Indent(&pretty, resp, "", "  "); err == nil {
 				logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
@@ -374,13 +392,8 @@ func (e *Engine) runRetentionPolicy() {
 	cutoff := time.Now().AddDate(0, 0, -days)
 	log.Printf("[Retention] Running cleanup for data older than %d days (Cutoff: %v)...", days, cutoff)
 
-	// 1. Delete Logs first (Foreign Key constraint usually handles this but being explicit is safer)
 	database.DB.Exec("DELETE FROM job_logs WHERE job_id IN (SELECT id FROM jobs WHERE created_at < ?)", cutoff)
-
-	// 2. Delete Jobs
 	result := database.DB.Unscoped().Where("created_at < ?", cutoff).Delete(&database.Job{})
 	log.Printf("[Retention] Cleanup complete. Removed %d job records.", result.RowsAffected)
-
-	// 3. Optimize DB size
 	database.DB.Exec("VACUUM")
 }

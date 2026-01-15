@@ -7,15 +7,19 @@ COPY web/ ./
 RUN npm run build
 
 # Stage 2: Build the Backend
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.24-alpine AS backend-builder
 WORKDIR /app
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+
+# Build arguments
+ARG BUILD_TAGS=""
+
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o remediation-server cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -tags "${BUILD_TAGS}" -o remediation-server cmd/server/main.go
 
 # Stage 3: Final Production Image
 FROM alpine:latest

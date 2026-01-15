@@ -28,7 +28,12 @@ jobs:
         cd web && npm install
 
     - name: Run Backend Tests
-      run: go test -v ./...
+      run: |
+        go test -v ./...
+        go test -tags multitenant -v ./...
 
-    - name: Verify Docker Build
-      run: docker build -t remediation-engine:latest .
+    - name: Verify Docker Build (Single-Tenant)
+      run: docker build -t remediation-engine:single .
+
+    - name: Verify Docker Build (Multi-Tenant)
+      run: docker build --build-arg BUILD_TAGS=multitenant -t remediation-engine:multi .

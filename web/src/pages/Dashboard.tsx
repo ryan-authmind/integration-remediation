@@ -39,6 +39,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SettingsIcon from '@mui/icons-material/Settings';
+import CorporateFareIcon from '@mui/icons-material/CorporateFare';
+import { useTenant } from '../context/TenantContext';
 import {
   BarChart,
   Bar,
@@ -59,7 +61,14 @@ interface Stats {
     failed_jobs: number;
     running_jobs: number;
     active_workflows: number;
-    workflow_breakdown: Record<string, number>;
+    total_tenants?: number;
+    workflow_breakdown?: Record<string, number>;
+    tenant_breakdown?: Array<{tenant_name: string, job_count: number, tenant_id: number}>;
+}
+
+interface Tenant {
+    id: number;
+    name: string;
 }
 
 interface JobLog {
@@ -72,6 +81,7 @@ interface JobLog {
 interface Job {
     id: number;
     created_at: string;
+    tenant_id: number;
     workflow_id: number;
     workflow: { name: string };
     status: string;
@@ -79,8 +89,8 @@ interface Job {
     trigger_context: string; 
 }
 
-function Row(props: { job: Job, onRerun: () => void }) {
-  const { job, onRerun } = props;
+function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants: Tenant[] }) {
+  const { job, onRerun, isGlobal, tenants } = props;
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<JobLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,16 +121,15 @@ function Row(props: { job: Job, onRerun: () => void }) {
       }
   };
 
-  // Extract Playbook Name safely
   let playbookName = 'N/A';
   try {
       if (job.trigger_context) {
           const context = JSON.parse(job.trigger_context);
           playbookName = context.PlaybookName || 'N/A';
       }
-  } catch (e) {
-      // ignore parsing error
-  }
+  } catch (e) {}
+
+  const tenantName = tenants.find(t => t.id === job.tenant_id)?.name || `ID:${job.tenant_id}`;
 
   return (
     <>
@@ -133,6 +142,11 @@ function Row(props: { job: Job, onRerun: () => void }) {
         <TableCell component="th" scope="row" sx={{ fontWeight: 700 }}>
           #{job.id}
         </TableCell>
+        {isGlobal && (
+            <TableCell>
+                <Chip label={tenantName} size="small" variant="outlined" icon={<CorporateFareIcon sx={{ fontSize: '1rem !important' }} />} />
+            </TableCell>
+        )}
         <TableCell>
             <Link to="/workflows" style={{ textDecoration: 'none', color: 'inherit', fontWeight: 500 }}>
                 {job.workflow?.name || 'Unknown'}
@@ -166,7 +180,7 @@ function Row(props: { job: Job, onRerun: () => void }) {
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={isGlobal ? 8 : 7}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 2 }}>
               <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -189,8 +203,6 @@ function Row(props: { job: Job, onRerun: () => void }) {
                             const hasResponse = log.message.includes('\nResponse: ');
                             const mainPart = hasResponse ? log.message.split('\nResponse: ')[0] : log.message;
                             const responsePart = hasResponse ? log.message.split('\nResponse: ')[1] : null;
-                            
-                            // Extract status code if present using regex: (Status: 200)
                             const statusMatch = mainPart.match(/\(Status: (\d+)\)/);
                             const statusCode = statusMatch ? statusMatch[1] : null;
                             const cleanMainPart = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
@@ -212,22 +224,7 @@ function Row(props: { job: Job, onRerun: () => void }) {
                                   )}
                                 </Box>
                                 {responsePart && (
-                                  <Box 
-                                    component="code" 
-                                    sx={{ 
-                                      display: 'block', 
-                                      p: 1, 
-                                      bgcolor: 'background.paper', 
-                                      borderRadius: 1, 
-                                      fontSize: '0.75rem', 
-                                      fontFamily: 'monospace',
-                                      border: '1px solid',
-                                      borderColor: 'divider',
-                                      color: 'primary.main',
-                                      whiteSpace: 'pre-wrap',
-                                      wordBreak: 'break-all'
-                                    }}
-                                  >
+                                  <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'background.paper', borderRadius: 1, fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid', borderColor: 'divider', color: 'primary.main', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                                     {responsePart}
                                   </Box>
                                 )}
@@ -236,11 +233,7 @@ function Row(props: { job: Job, onRerun: () => void }) {
                           })()
                         }
                         secondary={new Date(log.timestamp).toLocaleTimeString()}
-                        primaryTypographyProps={{
-                          component: 'div',
-                          variant: 'body2', 
-                          sx: { whiteSpace: 'pre-wrap' } 
-                        }}
+                        primaryTypographyProps={{ component: 'div', variant: 'body2', sx: { whiteSpace: 'pre-wrap' } }}
                       />
                     </ListItem>
                   ))}
@@ -264,13 +257,22 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [rerunTriggered, setRerunTriggered] = useState(false);
 
+  // Tenancy Context
+  const { selectedTenant, tenants } = useTenant();
+
   const fetchData = async () => {
     try {
+        // 1. Determine Endpoint and Headers
+        const isGlobal = selectedTenant === 0;
+        const statsUrl = isGlobal ? '/admin/stats' : '/stats';
+        const headers = isGlobal ? {} : { 'X-Tenant-ID': selectedTenant.toString() };
+
         const [statsRes, jobsRes, settingsRes] = await Promise.all([
-            client.get('/stats'),
-            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}`),
+            client.get(statsUrl, { headers }),
+            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}`, { headers }),
             client.get('/settings')
         ]);
+
         setStats(statsRes.data);
         setRecentJobs(jobsRes.data.data); 
         setTotalJobs(jobsRes.data.total);
@@ -304,58 +306,65 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => clearInterval(interval);
-  }, [page, rowsPerPage]);
+  }, [page, rowsPerPage, selectedTenant]);
 
   if (loading || !stats) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
   const retentionDays = settings.find(s => s.key === 'data_retention_days')?.value || '90';
+  const successRate = stats.total_jobs > 0 ? ((stats.success_jobs / stats.total_jobs) * 100).toFixed(1) : "0";
 
-  const successRate = stats.total_jobs > 0 
-    ? ((stats.success_jobs / stats.total_jobs) * 100).toFixed(1) 
-    : "0";
+  // Data for Charts
+  const workflowData = stats.workflow_breakdown 
+    ? Object.entries(stats.workflow_breakdown).map(([name, count]) => ({ name, value: count })).sort((a, b) => b.value - a.value).slice(0, 10)
+    : [];
 
-  const workflowData = Object.entries(stats.workflow_breakdown).map(([name, count]) => ({
-      name,
-      value: count
-  })).sort((a, b) => b.value - a.value).slice(0, 10); 
+  const tenantData = stats.tenant_breakdown
+    ? stats.tenant_breakdown.map(t => ({ name: t.tenant_name || `ID:${t.tenant_id}`, value: t.job_count }))
+    : [];
 
   const statusData = [
-      { name: 'Success', value: stats.success_jobs, color: '#2e7d32' }, 
-      { name: 'Failed', value: stats.failed_jobs, color: '#d32f2f' },   
+      { name: 'Success', value: stats.success_jobs, color: '#00D1B2' }, 
+      { name: 'Failed', value: stats.failed_jobs, color: '#FF4C4C' },   
   ];
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
         <Box>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>System Performance</Typography>
+            <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+                {selectedTenant === 0 ? 'Aggregate Performance' : 'Tenant Performance'}
+            </Typography>
             <Typography variant="body1" color="text.secondary">
-                Automated workflow throughput and detailed execution logs.
+                {selectedTenant === 0 
+                    ? 'Cross-tenant throughput and execution distribution.' 
+                    : `Metrics and logs for ${tenants.find(t => t.id === selectedTenant)?.name || 'selected tenant'}.`}
             </Typography>
         </Box>
         
-        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>
-                    DATA RETENTION
-                </Typography>
-                <Select
-                    size="small"
-                    value={retentionDays}
-                    onChange={(e) => handleUpdateRetention(e.target.value as string)}
-                    sx={{ fontSize: '0.8rem', mt: 0.5, fontWeight: 600 }}
-                >
-                    <MenuItem value="30">30 Days</MenuItem>
-                    <MenuItem value="60">60 Days</MenuItem>
-                    <MenuItem value="90">90 Days</MenuItem>
-                    <MenuItem value="180">180 Days</MenuItem>
-                    <MenuItem value="365">1 Year</MenuItem>
-                </Select>
-            </Box>
-            <Tooltip title="Jobs and logs older than this will be automatically archived daily to optimize storage.">
-                <InfoIcon color="disabled" fontSize="small" />
-            </Tooltip>
-        </Paper>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block' }}>
+                        DATA RETENTION
+                    </Typography>
+                    <Select
+                        size="small"
+                        value={retentionDays}
+                        onChange={(e) => handleUpdateRetention(e.target.value as string)}
+                        sx={{ fontSize: '0.8rem', mt: 0.5, fontWeight: 600 }}
+                    >
+                        <MenuItem value="30">30 Days</MenuItem>
+                        <MenuItem value="60">60 Days</MenuItem>
+                        <MenuItem value="90">90 Days</MenuItem>
+                        <MenuItem value="180">180 Days</MenuItem>
+                        <MenuItem value="365">1 Year</MenuItem>
+                    </Select>
+                </Box>
+                <Tooltip title="Jobs and logs older than this will be automatically archived daily to optimize storage.">
+                    <InfoIcon color="disabled" fontSize="small" />
+                </Tooltip>
+            </Paper>
+        </Box>
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -363,7 +372,11 @@ export default function Dashboard() {
             <MetricCard title="Total Executions" value={stats.total_jobs} icon={<TrendingUpIcon color="primary" />} />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-            <MetricCard title="Active Workflows" value={stats.active_workflows} icon={<SettingsIcon color="info" />} />
+            <MetricCard 
+                title={selectedTenant === 0 ? "Total Tenants" : "Active Workflows"} 
+                value={selectedTenant === 0 ? (stats.total_tenants || 0) : stats.active_workflows} 
+                icon={selectedTenant === 0 ? <CorporateFareIcon color="info" /> : <SettingsIcon color="info" />} 
+            />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
             <MetricCard title="Running Workflows" value={stats.running_jobs} icon={<SyncIcon color="warning" />} />
@@ -376,15 +389,17 @@ export default function Dashboard() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={8}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Workflow Execution Distribution</Typography>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
+                      {selectedTenant === 0 ? 'Tenant Job Distribution' : 'Workflow Execution Distribution'}
+                  </Typography>
                   <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={workflowData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart data={selectedTenant === 0 ? tenantData : workflowData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                           <XAxis type="number" />
                           <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
                           <RechartsTooltip />
                           <Legend />
-                          <Bar dataKey="value" name="Executions" fill="#1976d2" radius={[0, 4, 4, 0]} barSize={20} />
+                          <Bar dataKey="value" name="Executions" fill={selectedTenant === 0 ? "#00D1B2" : "#0062FF"} radius={[0, 4, 4, 0]} barSize={20} />
                       </BarChart>
                   </ResponsiveContainer>
               </Paper>
@@ -417,7 +432,9 @@ export default function Dashboard() {
           </Grid>
       </Grid>
 
-      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>Recent Activity</Typography>
+      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>
+          {selectedTenant === 0 ? 'Recent Global Activity' : 'Tenant Activity'}
+      </Typography>
       <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <TableContainer>
             <Table aria-label="collapsible table">
@@ -425,6 +442,7 @@ export default function Dashboard() {
                 <TableRow>
                 <TableCell width={50} />
                 <TableCell sx={{ fontWeight: 700 }}>Job ID</TableCell>
+                {selectedTenant === 0 && <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>}
                 <TableCell sx={{ fontWeight: 700 }}>Workflow Name</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Playbook Name</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Trigger ID</TableCell>
@@ -434,12 +452,14 @@ export default function Dashboard() {
             </TableHead>
             <TableBody>
                 {recentJobs.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>No execution history recorded yet.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={selectedTenant === 0 ? 8 : 7} align="center" sx={{ py: 4, color: 'text.secondary' }}>No execution history recorded yet.</TableCell></TableRow>
                 ) : (
                     recentJobs.map((job) => (
                         <Row 
                             key={job.id} 
                             job={job} 
+                            isGlobal={selectedTenant === 0}
+                            tenants={tenants}
                             onRerun={() => {
                                 setRerunTriggered(true);
                                 fetchData();

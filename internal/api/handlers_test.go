@@ -77,6 +77,7 @@ func TestCreateIntegration(t *testing.T) {
 		Type:    "REST",
 		BaseURL: "http://example.com",
 		Enabled: true,
+        TenantID: 1,
 	}
 	body, _ := json.Marshal(integ)
 
@@ -103,7 +104,7 @@ func TestCreateIntegration_Invalid(t *testing.T) {
 func TestUpdateIntegration(t *testing.T) {
 	router := setupRouter()
 	
-	integ := database.Integration{Name: "Old Name"}
+	integ := database.Integration{Name: "Old Name", TenantID: 1}
 	database.DB.Create(&integ)
 
 	integ.Name = "New Name"
@@ -127,6 +128,7 @@ func TestGetActionDefinitions(t *testing.T) {
 		Name: "Test Action",
 		Vendor: "Test",
 		Method: "POST",
+        TenantID: 1,
 	})
 
 	w := httptest.NewRecorder()
@@ -159,7 +161,7 @@ func TestCreateActionDefinition(t *testing.T) {
 func TestUpdateActionDefinition(t *testing.T) {
 	router := setupRouter()
 	
-	act := database.ActionDefinition{Name: "Old Action"}
+	act := database.ActionDefinition{Name: "Old Action", TenantID: 1}
 	database.DB.Create(&act)
 
 	act.Name = "Updated Action"
@@ -214,7 +216,7 @@ func TestCreateActionDefinition_Invalid(t *testing.T) {
 func TestGetWorkflows(t *testing.T) {
 	router := setupRouter()
 	
-	database.DB.Create(&database.Workflow{Name: "WF1", Enabled: true})
+	database.DB.Create(&database.Workflow{Name: "WF1", Enabled: true, TenantID: 1})
 	
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/workflows", nil)
@@ -241,12 +243,12 @@ func TestUpdateWorkflow(t *testing.T) {
 	router := setupRouter()
 	
 	// Create required actions first
-	act1 := database.ActionDefinition{Name: "Act1"}
+	act1 := database.ActionDefinition{Name: "Act1", TenantID: 1}
 	database.DB.Create(&act1)
-	act2 := database.ActionDefinition{Name: "Act2"}
+	act2 := database.ActionDefinition{Name: "Act2", TenantID: 1}
 	database.DB.Create(&act2)
 
-	wf := database.Workflow{Name: "Old WF", Enabled: true}
+	wf := database.Workflow{Name: "Old WF", Enabled: true, TenantID: 1}
 	database.DB.Create(&wf)
 	database.DB.Create(&database.WorkflowStep{WorkflowID: wf.ID, ActionDefinitionID: act1.ID, Order: 1})
 
@@ -272,7 +274,7 @@ func TestUpdateWorkflow(t *testing.T) {
 func TestDeleteWorkflow(t *testing.T) {
 	router := setupRouter()
 	
-	wf := database.Workflow{Name: "To Delete"}
+	wf := database.Workflow{Name: "To Delete", TenantID: 1}
 	database.DB.Create(&wf)
 	
 	w := httptest.NewRecorder()
@@ -293,10 +295,10 @@ func TestDeleteWorkflow(t *testing.T) {
 func TestGetJobs_And_Logs(t *testing.T) {
 	router := setupRouter()
 	
-	wf := database.Workflow{Name: "JobWF", Enabled: true}
+	wf := database.Workflow{Name: "JobWF", Enabled: true, TenantID: 1}
 	database.DB.Create(&wf)
 
-	job := database.Job{Status: "completed", WorkflowID: wf.ID, AuthMindIssueID: "issue-1"}
+	job := database.Job{Status: "completed", WorkflowID: wf.ID, AuthMindIssueID: "issue-1", TenantID: 1}
 	database.DB.Create(&job)
 	
 	log := database.JobLog{JobID: job.ID, Message: "Test Log"}
@@ -319,12 +321,12 @@ func TestGetJobs_And_Logs(t *testing.T) {
 func TestGetDashboardStats(t *testing.T) {
 	router := setupRouter()
 	
-	wf := database.Workflow{Name: "StatsWF", Enabled: true}
+	wf := database.Workflow{Name: "StatsWF", Enabled: true, TenantID: 1}
 	database.DB.Create(&wf)
 
-	database.DB.Create(&database.Job{Status: "completed", WorkflowID: wf.ID, AuthMindIssueID: "1"})
-	database.DB.Create(&database.Job{Status: "failed", WorkflowID: wf.ID, AuthMindIssueID: "2"})
-	database.DB.Create(&database.Job{Status: "running", WorkflowID: wf.ID, AuthMindIssueID: "3"})
+	database.DB.Create(&database.Job{Status: "completed", WorkflowID: wf.ID, AuthMindIssueID: "1", TenantID: 1})
+	database.DB.Create(&database.Job{Status: "failed", WorkflowID: wf.ID, AuthMindIssueID: "2", TenantID: 1})
+	database.DB.Create(&database.Job{Status: "running", WorkflowID: wf.ID, AuthMindIssueID: "3", TenantID: 1})
 	
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/stats", nil)
@@ -340,10 +342,10 @@ func TestRerunJob(t *testing.T) {
 	router := setupRouter()
 	
 	// Setup prerequisites
-	wf := database.Workflow{Name: "Rerun WF", Enabled: true}
+	wf := database.Workflow{Name: "Rerun WF", Enabled: true, TenantID: 1}
 	database.DB.Create(&wf)
 	
-	job := database.Job{WorkflowID: wf.ID, AuthMindIssueID: "100", Status: "completed"}
+	job := database.Job{WorkflowID: wf.ID, AuthMindIssueID: "100", Status: "completed", TenantID: 1}
 	database.DB.Create(&job)
 	
 	// Need action def and step for rerun to actually run something (or at least try)

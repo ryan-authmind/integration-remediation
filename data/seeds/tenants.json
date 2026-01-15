@@ -1,0 +1,7 @@
+[
+  {
+    "id": 1,
+    "name": "Default Tenant",
+    "description": "System default tenant for single-tenant mode or as a template."
+  }
+]

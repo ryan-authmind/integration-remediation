@@ -1,0 +1,10 @@
+[
+  {
+    "tenant_id": 1,
+    "issue_type": "Compromised User",
+    "language": "en",
+    "title": "Security Alert: Compromised User Detected",
+    "message": "We have detected suspicious activity on your account. As a precaution, your account has been suspended and sessions revoked.",
+    "footer": "Contact the security team for assistance."
+  }
+]

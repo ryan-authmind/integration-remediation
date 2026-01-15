@@ -1,0 +1,76 @@
+[
+  {
+    "tenant_id": 1,
+    "name": "AuthMind API",
+    "type": "REST",
+    "base_url": "https://qa.authmind.net/amapi/v1",
+    "auth_type": "bearer",
+    "credentials": "{\"token\":\"your-token\"}",
+    "enabled": true,
+    "polling_interval": 60
+  },
+  {
+    "tenant_id": 1,
+    "name": "ServiceNow",
+    "type": "REST",
+    "base_url": "https://dev000.service-now.com",
+    "auth_type": "basic",
+    "credentials": "{\"username\":\"admin\",\"password\":\"password\"}",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Slack",
+    "type": "REST",
+    "base_url": "https://hooks.slack.com",
+    "auth_type": "none",
+    "credentials": "{}",
+    "enabled": true,
+    "rate_limit": 1.0
+  },
+  {
+    "tenant_id": 1,
+    "name": "Microsoft Teams",
+    "type": "REST",
+    "base_url": "https://outlook.office.com",
+    "auth_type": "none",
+    "credentials": "{}",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "On-Prem AD",
+    "type": "WINRM",
+    "base_url": "192.168.1.50:5985",
+    "auth_type": "ntlm",
+    "credentials": "{\"username\":\"admin\",\"password\":\"password\"}",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Okta",
+    "type": "REST",
+    "base_url": "https://dev-000.okta.com",
+    "auth_type": "apikey",
+    "credentials": "{\"header_name\":\"Authorization\",\"api_key\":\"SSWS token\"}",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Torq",
+    "type": "REST",
+    "base_url": "https://events.torq.io",
+    "auth_type": "bearer",
+    "credentials": "{\"token\":\"token\"}",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Google SecOps",
+    "type": "REST",
+    "base_url": "https://malapi.chronicle.security",
+    "auth_type": "apikey",
+    "credentials": "{\"header_name\":\"Authorization\",\"api_key\":\"Bearer token\"}",
+    "enabled": true
+  }
+]
