@@ -25,6 +25,9 @@ func setupRouter() *gin.Engine {
 	// Initialize in-memory DB
 	database.InitDB(":memory:")
 	
+	// Create default tenant for tests to satisfy FK constraints
+	database.DB.FirstOrCreate(&database.Tenant{ID: 1, Name: "Default Tenant"})
+	
 	// Initialize Engine
 	core.NewEngine()
 	
@@ -147,6 +150,7 @@ func TestCreateActionDefinition(t *testing.T) {
 		Vendor: "VendorX",
 		Method: "GET",
 		PathTemplate: "/api/v1/resource",
+		TenantID: 1,
 	}
 	body, _ := json.Marshal(action)
 
@@ -182,8 +186,8 @@ func TestImportConfiguration(t *testing.T) {
 	router := setupRouter()
 	
 	payload := `{
-		"integrations": [{"name": "Imp Integ", "type": "REST"}],
-		"actions": [{"name": "Imp Action", "vendor": "V", "integration_id": 1}]
+		"integrations": [{"name": "Imp Integ", "type": "REST", "tenant_id": 1}],
+		"actions": [{"name": "Imp Action", "vendor": "V", "integration_id": 1, "tenant_id": 1}]
 	}`
 	
 	w := httptest.NewRecorder()
@@ -229,7 +233,7 @@ func TestGetWorkflows(t *testing.T) {
 func TestCreateWorkflow(t *testing.T) {
 	router := setupRouter()
 	
-	wf := database.Workflow{Name: "New WF", Enabled: true}
+	wf := database.Workflow{Name: "New WF", Enabled: true, TenantID: 1}
 	body, _ := json.Marshal(wf)
 	
 	w := httptest.NewRecorder()
