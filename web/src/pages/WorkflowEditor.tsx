@@ -342,23 +342,26 @@ export default function WorkflowEditor() {
                                         </Box>
                                     </StepLabel>
                                     <StepContent>
-                                        <Card variant="outlined" sx={{ mt: 1, mb: 2, bgcolor: 'background.default' }}>
-                                            <CardContent>
-                                                <Typography variant="caption" display="block" gutterBottom color="text.secondary">
-                                                    Parameter Mapping (JSON)
-                                                </Typography>
-                                                <TextField
-                                                    fullWidth
-                                                    multiline
-                                                    rows={3}
-                                                    value={step.parameter_mapping}
-                                                    onChange={(e) => updateStep(index, 'parameter_mapping', e.target.value)}
-                                                    sx={{ 
-                                                        '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '13px' }
-                                                    }}
-                                                />
-                                            </CardContent>
-                                        </Card>
+                                        {/* Parameters are hidden for now as per requirements, but logic is preserved */}
+                                        {false && (
+                                            <Card variant="outlined" sx={{ mt: 1, mb: 2, bgcolor: 'background.default' }}>
+                                                <CardContent>
+                                                    <Typography variant="caption" display="block" gutterBottom color="text.secondary">
+                                                        Parameter Mapping (JSON)
+                                                    </Typography>
+                                                    <TextField
+                                                        fullWidth
+                                                        multiline
+                                                        rows={3}
+                                                        value={step.parameter_mapping}
+                                                        onChange={(e) => updateStep(index, 'parameter_mapping', e.target.value)}
+                                                        sx={{ 
+                                                            '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: '13px' }
+                                                        }}
+                                                    />
+                                                </CardContent>
+                                            </Card>
+                                        )}
                                     </StepContent>
                                 </Step>
                             ))}
