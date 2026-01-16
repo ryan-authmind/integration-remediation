@@ -50,8 +50,11 @@ func TestExecuteREST_Success(t *testing.T) {
 		AuthType: "none",
 		Enabled:  true,
 		IsAvailable: true,
+		TenantID: 1, // Fix: FK constraint
 	}
-	database.DB.Create(&integ) // Save to DB so updates work
+	if err := database.DB.Create(&integ).Error; err != nil {
+		t.Fatalf("Failed to create integration: %v", err)
+	}
 	
 	def := database.ActionDefinition{
 		Name:         "Create Ticket",
@@ -84,8 +87,10 @@ func TestExecuteREST_TemplateError(t *testing.T) {
 	
 	executor := NewActionExecutor()
 	// Reduce retries to 0 for faster test
-	integ := database.Integration{BaseURL: "http://test", IsAvailable: true}
-	database.DB.Create(&integ)
+	integ := database.Integration{BaseURL: "http://test", IsAvailable: true, TenantID: 1}
+	if err := database.DB.Create(&integ).Error; err != nil {
+		t.Fatalf("Failed to create integration: %v", err)
+	}
 
 	def := database.ActionDefinition{
 		Name: "Bad Template", 
@@ -125,9 +130,11 @@ func TestExecuteREST_AuthTypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			integ := database.Integration{
-				Name: tt.name, BaseURL: "http://test", AuthType: tt.authType, Credentials: tt.creds, IsAvailable: true,
+				Name: tt.name, BaseURL: "http://test", AuthType: tt.authType, Credentials: tt.creds, IsAvailable: true, TenantID: 1,
 			}
-			database.DB.Create(&integ)
+			if err := database.DB.Create(&integ).Error; err != nil {
+				t.Fatalf("Failed to create integration: %v", err)
+			}
 			// Reload to decrypt credentials
 			database.DB.First(&integ, integ.ID)
 			
