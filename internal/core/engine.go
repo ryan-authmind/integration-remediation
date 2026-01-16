@@ -196,12 +196,17 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     			}
     		}
     
-    		// Identify matching workflows
-    		var workflowsToRun []database.Workflow
-            issueSevScore := issue.Severity
-    
-    		for _, wf := range task.Workflows {
-    			// Check Name Match
+    				// Identify matching workflows
+    				var workflowsToRun []database.Workflow
+    		        issueSevScore := issue.Severity
+    		        
+    		        // Fallback: If integer severity is missing (0), try to derive from Risk string
+    		        if issueSevScore == 0 && issue.Risk != "" {
+    		            issueSevScore = e.severityStringToInt(issue.Risk)
+    		            log.Printf("[Engine] Derived severity %d from Risk '%s'", issueSevScore, issue.Risk)
+    		        }
+    		
+    				for _, wf := range task.Workflows {    			// Check Name Match
                 if wf.Name != issue.IssueType && wf.Name != "All" {
                     // log.Printf("[Engine] Skipping WF '%s' - Name mismatch", wf.Name)
                     continue
