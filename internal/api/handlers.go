@@ -195,6 +195,8 @@ func UpdateIntegration(c *gin.Context) {
 		return
 	}
 
+    input.TenantID = tenancy.ResolveTenantID(c)
+
     // Protect circuit breaker state from being overwritten by UI updates
     // We use Omit to keep current DB values for these fields
 	database.DB.Model(&input).Omit("is_available", "consecutive_failures").Save(&input)
