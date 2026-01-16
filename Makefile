@@ -36,12 +36,11 @@ build-server: test
 	@echo "Building Server..."
 	$(GO_CMD) build $(BUILD_TAGS) -o $(BINARY_NAME) cmd/server/main.go
 
-# Build Self-Contained Tenant Package
+# Build Self-Contained Tenant Package (Updates existing without wiping data)
 build-tenant: build-frontend
-	@echo "Building Self-Contained Tenant Build..."
-	rm -rf $(TENANT_DIR)
-	mkdir -p $(TENANT_DIR)/data
+	@echo "Updating Tenant Distribution..."
 	mkdir -p $(TENANT_DIR)/data/seeds
+	rm -rf $(TENANT_DIR)/dist
 	$(GO_CMD) build $(BUILD_TAGS) -o $(TENANT_DIR)/$(BINARY_NAME) cmd/server/main.go
 	cp -r web/dist $(TENANT_DIR)/dist
 	cp -r data/seeds/*.json $(TENANT_DIR)/data/seeds/
