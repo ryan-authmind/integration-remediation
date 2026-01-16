@@ -171,111 +171,122 @@ func (e *Engine) pollAuthMind(task PollingTask) {
         database.DB.Save(&state) 
     }
 
-    // Poll for EVERYTHING ("" for type) to be efficient
-	issues, err := sdk.GetIssues("", state.Value)
-	if err != nil {
-		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
-		return
-	}
-
-	for _, issue := range issues {
-		issueIDStr := issue.IssueID
-		userEmail := "Unknown"
-		if issue.IssueKeys != nil {
-			for _, key := range []string{"identity_name", "user_email", "username", "email"} {
-				if val, ok := issue.IssueKeys[key].(string); ok && val != "" {
-					userEmail = val
-					break
-				}
-			}
-		}
-
-		// Identify matching workflows
-		var workflowsToRun []database.Workflow
-        issueSevScore := issue.Severity
-
-		for _, wf := range task.Workflows {
-			// Check Name Match
-            if wf.Name != issue.IssueType && wf.Name != "All" {
-                continue
-            }
-            
-            // Check Severity
-            wfSevScore := e.severityStringToInt(wf.MinSeverity)
-            if issueSevScore < wfSevScore {
-                continue
-            }
-
-            workflowsToRun = append(workflowsToRun, wf)
-		}
-
-		if len(workflowsToRun) > 0 {
-			details, err := sdk.GetIssueDetails(issueIDStr)
-			if err != nil {
-				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
-				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
-			}
-
-			contextData := map[string]interface{}{
-                "TenantID":      task.TenantID, // Inject TenantID into context
-				"IssueID":       issueIDStr,
-				"UserEmail":     userEmail,
-				"Timestamp":     time.Now().Format(time.RFC3339),
-				"Severity":      issue.Severity,
-				"Risk":          issue.Risk,
-				"PlaybookName":  issue.PlaybookName,
-				"IssueMessage":  issue.Message,
-				"FlowCount":     issue.FlowCount,
-				"IncidentCount": issue.IncidentCount,
-				"IncidentsURL":  issue.IncidentsURL,
-				"Details":       details,
-				"IssueType":     issue.IssueType,
-				"IssueKeys":     issue.IssueKeys,
-				"FirstSeen":     issue.IssueTime,
-			}
-			
-			for _, runWf := range workflowsToRun {
-				e.RunWorkflow(runWf, contextData)
-			}
-		}
-		state.Value = issueIDStr
-		database.DB.Save(&state)
-	}
-}
-
-func (e *Engine) severityStringToInt(sev string) int {
-    switch sev {
-    case "Critical": return 4
-    case "High": return 3
-    case "Medium": return 2
-    case "Low": return 1
-    default: return 1
-    }
-}
-
-func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
-	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
-    tenantID := triggerContext["TenantID"].(uint)
-	
-	contextJSON, _ := json.Marshal(triggerContext)
-
-	job := database.Job{
-        TenantID:        tenantID,
-		WorkflowID:      wf.ID,
-		AuthMindIssueID: issueID,
-		Status:          "running",
-		TriggerContext:  string(contextJSON),
-	}
-
-    var existing int64
-    database.DB.Model(&database.Job{}).
-        Where("tenant_id = ? AND workflow_id = ? AND auth_mind_issue_id = ?", tenantID, wf.ID, issueID).
-        Count(&existing)
+    	// Poll for EVERYTHING ("" for type) to be efficient
+    	issues, err := sdk.GetIssues("", state.Value)
+    	if err != nil {
+    		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
+    		return
+    	}
         
-    if existing > 0 && triggerContext["ManualRerun"] != true {
-        return
+        if len(issues) > 0 {
+            log.Printf("[Engine] Tenant %d: Fetched %d new issues from AuthMind (LastID: %s)", task.TenantID, len(issues), state.Value)
+        }
+    
+    	for _, issue := range issues {
+    		issueIDStr := issue.IssueID
+            log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
+    
+    		userEmail := "Unknown"
+    		if issue.IssueKeys != nil {
+    			for _, key := range []string{"identity_name", "user_email", "username", "email"} {
+    				if val, ok := issue.IssueKeys[key].(string); ok && val != "" {
+    					userEmail = val
+    					break
+    				}
+    			}
+    		}
+    
+    		// Identify matching workflows
+    		var workflowsToRun []database.Workflow
+            issueSevScore := issue.Severity
+    
+    		for _, wf := range task.Workflows {
+    			// Check Name Match
+                if wf.Name != issue.IssueType && wf.Name != "All" {
+                    // log.Printf("[Engine] Skipping WF '%s' - Name mismatch", wf.Name)
+                    continue
+                }
+                
+                // Check Severity
+                wfSevScore := e.severityStringToInt(wf.MinSeverity)
+                if issueSevScore < wfSevScore {
+                    log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d < WF: %d)", wf.Name, issueSevScore, wfSevScore)
+                    continue
+                }
+    
+                workflowsToRun = append(workflowsToRun, wf)
+    		}
+    
+    		if len(workflowsToRun) > 0 {
+    			details, err := sdk.GetIssueDetails(issueIDStr)
+    			if err != nil {
+    				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
+    				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
+    			}
+    
+    			contextData := map[string]interface{}{
+                    "TenantID":      task.TenantID, // Inject TenantID into context
+    				"IssueID":       issueIDStr,
+    				"UserEmail":     userEmail,
+    				"Timestamp":     time.Now().Format(time.RFC3339),
+    				"Severity":      issue.Severity,
+    				"Risk":          issue.Risk,
+    				"PlaybookName":  issue.PlaybookName,
+    				"IssueMessage":  issue.Message,
+    				"FlowCount":     issue.FlowCount,
+    				"IncidentCount": issue.IncidentCount,
+    				"IncidentsURL":  issue.IncidentsURL,
+    				"Details":       details,
+    				"IssueType":     issue.IssueType,
+    				"IssueKeys":     issue.IssueKeys,
+    				"FirstSeen":     issue.IssueTime,
+    			}
+    			
+    			for _, runWf := range workflowsToRun {
+                    log.Printf("[Engine] Tenant %d: Queuing execution for WF '%s' on Issue %s", task.TenantID, runWf.Name, issueIDStr)
+    				e.RunWorkflow(runWf, contextData)
+    			}
+    		} else {
+                log.Printf("[Engine] Tenant %d: No matching workflows found for Issue %s", task.TenantID, issueIDStr)
+            }
+    		state.Value = issueIDStr
+    		database.DB.Save(&state)
+    	}
     }
-
+    
+    func (e *Engine) severityStringToInt(sev string) int {
+        switch sev {
+        case "Critical": return 4
+        case "High": return 3
+        case "Medium": return 2
+        case "Low": return 1
+        default: return 1
+        }
+    }
+    
+    func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
+    	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
+        tenantID := triggerContext["TenantID"].(uint)
+    	
+    	contextJSON, _ := json.Marshal(triggerContext)
+    
+    	job := database.Job{
+            TenantID:        tenantID,
+    		WorkflowID:      wf.ID,
+    		AuthMindIssueID: issueID,
+    		Status:          "running",
+    		TriggerContext:  string(contextJSON),
+    	}
+    
+        var existing int64
+        database.DB.Model(&database.Job{}).
+            Where("tenant_id = ? AND workflow_id = ? AND auth_mind_issue_id = ?", tenantID, wf.ID, issueID).
+            Count(&existing)
+            
+        if existing > 0 && triggerContext["ManualRerun"] != true {
+            log.Printf("[Engine] Job skipped: Duplicate execution for Tenant %d, WF %d, Issue %s", tenantID, wf.ID, issueID)
+            return
+        }
 	if err := database.DB.Create(&job).Error; err != nil {
 		if triggerContext["ManualRerun"] == true {
 			job.AuthMindIssueID = fmt.Sprintf("%s-rerun-%d", issueID, time.Now().Unix())
