@@ -45,19 +45,23 @@ func TestEngine_Polling(t *testing.T) {
 	setupTestDB()
 	
 	// 1. Setup Data for Tenant 1
-	database.DB.Create(&database.Integration{
+	integ := database.Integration{
 		Name: "AuthMind API", 
 		BaseURL: "http://mock", 
 		Credentials: `{"token":"abc"}`, 
 		Enabled: true, 
 		PollingInterval: 1,
         TenantID: 1,
-	})
+	}
+	database.DB.Create(&integ)
 	
 	wf := database.Workflow{Name: "Compromised User", Enabled: true, TriggerType: "AUTHMIND_POLL", MinSeverity: "Low", TenantID: 1}
 	if err := database.DB.Where("name = ?", wf.Name).Assign(wf).FirstOrCreate(&wf).Error; err != nil {
         t.Fatalf("Failed to setup workflow: %v", err)
     }
+
+    // Association required for scheduleForTenant
+    database.DB.Model(&wf).Association("AuthMindPollers").Append(&integ)
 	
 	// 2. Mock SDK
 	originalSDK := integrations.NewAuthMindSDK
@@ -121,22 +125,25 @@ func TestEngine_Polling(t *testing.T) {
 func TestEngine_Polling_AllWorkflow(t *testing.T) {
 	setupTestDB()
 	
-	database.DB.Create(&database.Integration{
+	integ := database.Integration{
 		Name: "AuthMind API", 
 		BaseURL: "http://mock", 
 		Credentials: `{"token":"abc"}`, 
 		Enabled: true, 
 		PollingInterval: 1,
         TenantID: 1,
-	})
+	}
+	database.DB.Create(&integ)
 	
 	// Create "All" workflow
     allWf := database.Workflow{Name: "All", Enabled: true, TriggerType: "AUTHMIND_POLL", TenantID: 1}
     database.DB.Where("name = ?", allWf.Name).Assign(allWf).FirstOrCreate(&allWf)
+    database.DB.Model(&allWf).Association("AuthMindPollers").Append(&integ)
 
 	// Create specific workflow
     specWf := database.Workflow{Name: "Specific", Enabled: true, TriggerType: "AUTHMIND_POLL", TenantID: 1}
     database.DB.Where("name = ?", specWf.Name).Assign(specWf).FirstOrCreate(&specWf)
+    database.DB.Model(&specWf).Association("AuthMindPollers").Append(&integ)
 	
 	// Mock SDK
 	originalSDK := integrations.NewAuthMindSDK
