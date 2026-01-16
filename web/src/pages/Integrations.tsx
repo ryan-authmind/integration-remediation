@@ -215,8 +215,7 @@ export default function Integrations() {
 
   const handleReset = async (integration: Integration) => {
       try {
-          const updated = { ...integration, is_available: true, consecutive_failures: 0 };
-          await client.put('/integrations', updated, {
+          await client.put(`/integrations/${integration.id}/reset`, {}, {
               headers: { 'X-Tenant-ID': selectedTenant.toString() }
           });
           setNotification({ msg: `Connection reset for ${integration.name}`, type: 'success' });

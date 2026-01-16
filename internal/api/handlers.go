@@ -203,6 +203,29 @@ func UpdateIntegration(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
+// ResetIntegrationCircuitBreaker manually resets the circuit breaker state
+func ResetIntegrationCircuitBreaker(c *gin.Context) {
+    id := c.Param("id")
+    tenantID := tenancy.ResolveTenantID(c)
+
+    var integration database.Integration
+    // Verify existence and ownership
+    if err := database.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&integration).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "integration not found"})
+        return
+    }
+
+    if err := database.DB.Model(&integration).Updates(map[string]interface{}{
+        "is_available":         true,
+        "consecutive_failures": 0,
+    }).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to reset circuit breaker"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"status": "circuit breaker reset"})
+}
+
 // GetWorkflows returns all workflows and their steps
 func GetWorkflows(c *gin.Context) {
     tenantID := tenancy.ResolveTenantID(c)
