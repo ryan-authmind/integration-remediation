@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"remediation-engine/internal/database"
 	"remediation-engine/internal/integrations"
 	"strconv"
@@ -301,7 +302,7 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		}
 	}
 
-	log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s)", tenantID, wf.Name, triggerContext["UserEmail"], issueID)
+	log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s) - Steps: %d", tenantID, wf.Name, triggerContext["UserEmail"], issueID, len(wf.Steps))
 
 	lang := "en"
 	if val, ok := triggerContext["Language"].(string); ok {
@@ -321,6 +322,11 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 
 	executor := NewExecutorFunc()
 	success := true
+
+    // Ensure steps are executed in order
+    sort.Slice(wf.Steps, func(i, j int) bool {
+        return wf.Steps[i].Order < wf.Steps[j].Order
+    })
 
 	for _, step := range wf.Steps {
 		// 1. Fetch Action Definition (Scoped by Tenant)
