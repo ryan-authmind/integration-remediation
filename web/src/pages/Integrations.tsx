@@ -81,6 +81,7 @@ export default function Integrations() {
       username: '',
       password: '',
       token: '',
+      apiKeyHeader: 'X-API-Key',
       client_id: '',
       client_secret: '',
       token_endpoint: '',
@@ -130,6 +131,7 @@ export default function Integrations() {
           username: '',
           password: '',
           token: '',
+          apiKeyHeader: 'X-API-Key',
           client_id: '',
           client_secret: '',
           token_endpoint: '',
@@ -141,7 +143,7 @@ export default function Integrations() {
 
   const handleEditOpen = (integration: Integration) => {
     setSelected(integration);
-    let creds = { username: '', password: '', token: '', client_id: '', client_secret: '' };
+    let creds = { username: '', password: '', token: '', api_key: '', header_name: '', client_id: '', client_secret: '' };
     try {
         creds = JSON.parse(integration.credentials);
     } catch (e) {}
@@ -153,7 +155,8 @@ export default function Integrations() {
         auth_type: integration.auth_type,
         username: creds.username || '',
         password: creds.password || '',
-        token: creds.token || '',
+        token: creds.token || creds.api_key || '',
+        apiKeyHeader: creds.header_name || 'X-API-Key',
         client_id: creds.client_id || '',
         client_secret: creds.client_secret || '',
         token_endpoint: integration.token_endpoint || '',
@@ -168,6 +171,8 @@ export default function Integrations() {
         username: formData.username,
         password: formData.password,
         token: formData.token,
+        api_key: formData.token, // Map token to api_key for backend consistency
+        header_name: formData.apiKeyHeader,
         client_id: formData.client_id,
         client_secret: formData.client_secret
     });
@@ -215,8 +220,7 @@ export default function Integrations() {
 
   const handleReset = async (integration: Integration) => {
       try {
-          const updated = { ...integration, is_available: true, consecutive_failures: 0 };
-          await client.put('/integrations', updated, {
+          await client.put(`/integrations/${integration.id}/reset`, {}, {
               headers: { 'X-Tenant-ID': selectedTenant.toString() }
           });
           setNotification({ msg: `Connection reset for ${integration.name}`, type: 'success' });
@@ -491,10 +495,31 @@ export default function Integrations() {
                             />
                         </Grid>
                     </>
-                ) : (formData.auth_type === 'bearer' || formData.auth_type === 'apikey') ? (
+                ) : formData.auth_type === 'apikey' ? (
+                    <>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="Header Name" 
+                                fullWidth 
+                                placeholder="X-API-Key"
+                                value={formData.apiKeyHeader}
+                                onChange={(e) => setFormData({...formData, apiKeyHeader: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="API Key" 
+                                type="password"
+                                fullWidth 
+                                value={formData.token}
+                                onChange={(e) => setFormData({...formData, token: e.target.value})}
+                            />
+                        </Grid>
+                    </>
+                ) : formData.auth_type === 'bearer' ? (
                     <Grid item xs={12}>
                         <TextField 
-                            label="API / Bearer Token" 
+                            label="Bearer Token" 
                             type="password"
                             fullWidth 
                             value={formData.token}

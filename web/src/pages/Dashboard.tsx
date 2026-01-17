@@ -61,9 +61,10 @@ interface Stats {
     failed_jobs: number;
     running_jobs: number;
     active_workflows: number;
+    processed_events: number;
     total_tenants?: number;
     workflow_breakdown?: Record<string, number>;
-    tenant_breakdown?: Array<{tenant_name: string, job_count: number, tenant_id: number}>;
+    tenant_breakdown?: Array<{tenant_name: string, job_count: number, event_count: number, tenant_id: number}>;
 }
 
 interface Tenant {
@@ -319,7 +320,7 @@ export default function Dashboard() {
     : [];
 
   const tenantData = stats.tenant_breakdown
-    ? stats.tenant_breakdown.map(t => ({ name: t.tenant_name || `ID:${t.tenant_id}`, value: t.job_count }))
+    ? stats.tenant_breakdown.map(t => ({ name: t.tenant_name || `ID:${t.tenant_id}`, executions: t.job_count, events: t.event_count }))
     : [];
 
   const statusData = [
@@ -368,20 +369,23 @@ export default function Dashboard() {
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-            <MetricCard title="Total Executions" value={stats.total_jobs} icon={<TrendingUpIcon color="primary" />} />
+        <Grid item xs={12} sm={6} md={2.4}>
+            <MetricCard title="Events Processed" value={stats.processed_events} icon={<InfoIcon color="primary" />} />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
+            <MetricCard title="Workflows Executed" value={stats.total_jobs} icon={<TrendingUpIcon color="secondary" />} />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
             <MetricCard 
                 title={selectedTenant === 0 ? "Total Tenants" : "Active Workflows"} 
                 value={selectedTenant === 0 ? (stats.total_tenants || 0) : stats.active_workflows} 
                 icon={selectedTenant === 0 ? <CorporateFareIcon color="info" /> : <SettingsIcon color="info" />} 
             />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-            <MetricCard title="Running Workflows" value={stats.running_jobs} icon={<SyncIcon color="warning" />} />
+        <Grid item xs={12} sm={6} md={2.4}>
+            <MetricCard title="Running Jobs" value={stats.running_jobs} icon={<SyncIcon color="warning" />} />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
             <MetricCard title="Success Rate" value={`${successRate}%`} icon={<CheckCircleIcon color="success" />} />
         </Grid>
       </Grid>
@@ -390,7 +394,7 @@ export default function Dashboard() {
           <Grid item xs={12} md={8}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
                   <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>
-                      {selectedTenant === 0 ? 'Tenant Job Distribution' : 'Workflow Execution Distribution'}
+                      {selectedTenant === 0 ? 'Tenant Activity Comparison' : 'Workflow Execution Distribution'}
                   </Typography>
                   <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={selectedTenant === 0 ? tenantData : workflowData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -399,7 +403,14 @@ export default function Dashboard() {
                           <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
                           <RechartsTooltip />
                           <Legend />
-                          <Bar dataKey="value" name="Executions" fill={selectedTenant === 0 ? "#00D1B2" : "#0062FF"} radius={[0, 4, 4, 0]} barSize={20} />
+                          {selectedTenant === 0 ? (
+                              <>
+                                <Bar dataKey="events" name="Events Processed" fill="#00D1B2" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="executions" name="Workflows Executed" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={15} />
+                              </>
+                          ) : (
+                                <Bar dataKey="value" name="Executions" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={20} />
+                          )}
                       </BarChart>
                   </ResponsiveContainer>
               </Paper>

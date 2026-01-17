@@ -66,6 +66,7 @@ func main() {
         apiRoutes.GET("/integrations", api.GetIntegrations)
         apiRoutes.POST("/integrations", api.CreateIntegration)
         apiRoutes.PUT("/integrations", api.UpdateIntegration)
+        apiRoutes.PUT("/integrations/:id/reset", api.ResetIntegrationCircuitBreaker)
         apiRoutes.GET("/actions", api.GetActionDefinitions)
         apiRoutes.POST("/actions", api.CreateActionDefinition)
         apiRoutes.PUT("/actions", api.UpdateActionDefinition)
@@ -126,4 +127,3 @@ func main() {
                     log.Fatal("Server failed to start:", err)
             }
     }
-    

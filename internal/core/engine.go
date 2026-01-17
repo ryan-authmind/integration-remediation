@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"sort"
 	"remediation-engine/internal/database"
 	"remediation-engine/internal/integrations"
 	"strconv"
@@ -34,6 +36,7 @@ type Engine struct {
 
     // SyncMode forces synchronous execution for testing
     SyncMode bool
+    DebugMode bool
 }
 
 func NewEngine() *Engine {
@@ -41,6 +44,7 @@ func NewEngine() *Engine {
         taskQueue:   make(chan PollingTask, 1000), // Buffered channel
         workerCount: 20,                           // Default 20 workers
 		lastRun:     make(map[uint]map[uint]time.Time),
+        DebugMode:   os.Getenv("DEBUG") == "true",
 	}
     return GlobalEngine
 }
@@ -171,111 +175,148 @@ func (e *Engine) pollAuthMind(task PollingTask) {
         database.DB.Save(&state) 
     }
 
-    // Poll for EVERYTHING ("" for type) to be efficient
-	issues, err := sdk.GetIssues("", state.Value)
-	if err != nil {
-		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
-		return
-	}
-
-	for _, issue := range issues {
-		issueIDStr := issue.IssueID
-		userEmail := "Unknown"
-		if issue.IssueKeys != nil {
-			for _, key := range []string{"identity_name", "user_email", "username", "email"} {
-				if val, ok := issue.IssueKeys[key].(string); ok && val != "" {
-					userEmail = val
-					break
-				}
-			}
-		}
-
-		// Identify matching workflows
-		var workflowsToRun []database.Workflow
-        issueSevScore := issue.Severity
-
-		for _, wf := range task.Workflows {
-			// Check Name Match
-            if wf.Name != issue.IssueType && wf.Name != "All" {
-                continue
-            }
-            
-            // Check Severity
-            wfSevScore := e.severityStringToInt(wf.MinSeverity)
-            if issueSevScore < wfSevScore {
-                continue
-            }
-
-            workflowsToRun = append(workflowsToRun, wf)
-		}
-
-		if len(workflowsToRun) > 0 {
-			details, err := sdk.GetIssueDetails(issueIDStr)
-			if err != nil {
-				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
-				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
-			}
-
-			contextData := map[string]interface{}{
-                "TenantID":      task.TenantID, // Inject TenantID into context
-				"IssueID":       issueIDStr,
-				"UserEmail":     userEmail,
-				"Timestamp":     time.Now().Format(time.RFC3339),
-				"Severity":      issue.Severity,
-				"Risk":          issue.Risk,
-				"PlaybookName":  issue.PlaybookName,
-				"IssueMessage":  issue.Message,
-				"FlowCount":     issue.FlowCount,
-				"IncidentCount": issue.IncidentCount,
-				"IncidentsURL":  issue.IncidentsURL,
-				"Details":       details,
-				"IssueType":     issue.IssueType,
-				"IssueKeys":     issue.IssueKeys,
-				"FirstSeen":     issue.IssueTime,
-			}
-			
-			for _, runWf := range workflowsToRun {
-				e.RunWorkflow(runWf, contextData)
-			}
-		}
-		state.Value = issueIDStr
-		database.DB.Save(&state)
-	}
-}
-
-func (e *Engine) severityStringToInt(sev string) int {
-    switch sev {
-    case "Critical": return 4
-    case "High": return 3
-    case "Medium": return 2
-    case "Low": return 1
-    default: return 1
-    }
-}
-
-func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
-	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
-    tenantID := triggerContext["TenantID"].(uint)
-	
-	contextJSON, _ := json.Marshal(triggerContext)
-
-	job := database.Job{
-        TenantID:        tenantID,
-		WorkflowID:      wf.ID,
-		AuthMindIssueID: issueID,
-		Status:          "running",
-		TriggerContext:  string(contextJSON),
-	}
-
-    var existing int64
-    database.DB.Model(&database.Job{}).
-        Where("tenant_id = ? AND workflow_id = ? AND auth_mind_issue_id = ?", tenantID, wf.ID, issueID).
-        Count(&existing)
+    	// Poll for EVERYTHING ("" for type) to be efficient
+    	issues, err := sdk.GetIssues("", state.Value)
+    	if err != nil {
+    		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
+    		return
+    	}
         
-    if existing > 0 && triggerContext["ManualRerun"] != true {
-        return
-    }
+        if len(issues) > 0 && e.DebugMode {
+            log.Printf("[Engine] Tenant %d: Fetched %d new issues from AuthMind (LastID: %s)", task.TenantID, len(issues), state.Value)
+        }
+    
+    	for _, issue := range issues {
+    		issueIDStr := issue.IssueID
+            
+            // Record processed event for metrics (deduplicated)
+            database.DB.Where(database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+            }).FirstOrCreate(&database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+            })
 
+            if e.DebugMode {
+                log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
+            }
+    
+    		userEmail := "Unknown"
+    		if issue.IssueKeys != nil {
+    			for _, key := range []string{"identity_name", "user_email", "username", "email"} {
+    				if val, ok := issue.IssueKeys[key].(string); ok && val != "" {
+    					userEmail = val
+    					break
+    				}
+    			}
+    		}
+    
+    				// Identify matching workflows
+    				var workflowsToRun []database.Workflow
+    		        issueSevScore := issue.Severity
+    		        
+    		        // Fallback: If integer severity is missing (0), try to derive from Risk string
+    		        if issueSevScore == 0 && issue.Risk != "" {
+    		            issueSevScore = e.severityStringToInt(issue.Risk)
+                        if e.DebugMode {
+    		                log.Printf("[Engine] Derived severity %d from Risk '%s'", issueSevScore, issue.Risk)
+                        }
+    		        }
+    		
+    				for _, wf := range task.Workflows {    			// Check Name Match
+                if wf.Name != issue.IssueType && wf.Name != "All" {
+                    // log.Printf("[Engine] Skipping WF '%s' - Name mismatch", wf.Name)
+                    continue
+                }
+                
+                // Check Severity
+                wfSevScore := e.severityStringToInt(wf.MinSeverity)
+                if issueSevScore > wfSevScore {
+                    if e.DebugMode {
+                        log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d > WF: %d)", wf.Name, issueSevScore, wfSevScore)
+                    }
+                    continue
+                }
+    
+                workflowsToRun = append(workflowsToRun, wf)
+    		}
+    
+    		if len(workflowsToRun) > 0 {
+    			details, err := sdk.GetIssueDetails(issueIDStr)
+    			if err != nil {
+    				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
+    				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
+    			}
+    
+    			contextData := map[string]interface{}{
+                    "TenantID":      task.TenantID, // Inject TenantID into context
+    				"IssueID":       issueIDStr,
+    				"UserEmail":     userEmail,
+    				"Timestamp":     time.Now().Format(time.RFC3339),
+    				"Severity":      issue.Severity,
+    				"Risk":          issue.Risk,
+    				"PlaybookName":  issue.PlaybookName,
+    				"IssueMessage":  issue.Message,
+    				"FlowCount":     issue.FlowCount,
+    				"IncidentCount": issue.IncidentCount,
+    				"IncidentsURL":  issue.IncidentsURL,
+    				"Details":       details,
+    				"IssueType":     issue.IssueType,
+    				"IssueKeys":     issue.IssueKeys,
+    				"FirstSeen":     issue.IssueTime,
+    			}
+    			
+    			for _, runWf := range workflowsToRun {
+                    if e.DebugMode {
+                        log.Printf("[Engine] Tenant %d: Queuing execution for WF '%s' on Issue %s", task.TenantID, runWf.Name, issueIDStr)
+                    }
+    				e.RunWorkflow(runWf, contextData)
+    			}
+    		} else {
+                if e.DebugMode {
+                    log.Printf("[Engine] Tenant %d: No matching workflows found for Issue %s", task.TenantID, issueIDStr)
+                }
+            }
+    		state.Value = issueIDStr
+    		database.DB.Save(&state)
+    	}
+    }
+    
+    func (e *Engine) severityStringToInt(sev string) int {
+        switch sev {
+        case "Critical": return 1
+        case "High": return 2
+        case "Medium": return 3
+        case "Low": return 4
+        default: return 4
+        }
+    }    
+    func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
+    	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
+        tenantID := triggerContext["TenantID"].(uint)
+    	
+    	contextJSON, _ := json.Marshal(triggerContext)
+    
+    	job := database.Job{
+            TenantID:        tenantID,
+    		WorkflowID:      wf.ID,
+    		AuthMindIssueID: issueID,
+    		Status:          "running",
+    		TriggerContext:  string(contextJSON),
+    	}
+    
+        var existing int64
+        database.DB.Model(&database.Job{}).
+            Where("tenant_id = ? AND workflow_id = ? AND auth_mind_issue_id = ?", tenantID, wf.ID, issueID).
+            Count(&existing)
+            
+        if existing > 0 && triggerContext["ManualRerun"] != true {
+            if e.DebugMode {
+                log.Printf("[Engine] Job skipped: Duplicate execution for Tenant %d, WF %d, Issue %s", tenantID, wf.ID, issueID)
+            }
+            return
+        }
 	if err := database.DB.Create(&job).Error; err != nil {
 		if triggerContext["ManualRerun"] == true {
 			job.AuthMindIssueID = fmt.Sprintf("%s-rerun-%d", issueID, time.Now().Unix())
@@ -285,7 +326,9 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 		}
 	}
 
-	log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s)", tenantID, wf.Name, triggerContext["UserEmail"], issueID)
+    if e.DebugMode {
+	    log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s) - Steps: %d", tenantID, wf.Name, triggerContext["UserEmail"], issueID, len(wf.Steps))
+    }
 
 	lang := "en"
 	if val, ok := triggerContext["Language"].(string); ok {
@@ -305,6 +348,11 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 
 	executor := NewExecutorFunc()
 	success := true
+
+    // Ensure steps are executed in order
+    sort.Slice(wf.Steps, func(i, j int) bool {
+        return wf.Steps[i].Order < wf.Steps[j].Order
+    })
 
 	for _, step := range wf.Steps {
 		// 1. Fetch Action Definition (Scoped by Tenant)
@@ -345,21 +393,27 @@ func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]int
 
 		resp, code, err := executor.Execute(integration, actionDef, contextData)
 		if err != nil {
-			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err))
+            errMsg := fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err)
+            if len(resp) > 0 {
+                errMsg += fmt.Sprintf("\nResponse Body: %s", string(resp))
+            }
+			e.logToJob(job.ID, "ERROR", errMsg)
 			success = false
 			break
 		}
 		
-		logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
-		if len(resp) > 0 {
-			var pretty bytes.Buffer
-			if err := json.Indent(&pretty, resp, "", "  "); err == nil {
-				logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
-			} else {
-				logMsg += fmt.Sprintf("\nResponse: %s", string(resp))
-			}
-		}
-		e.logToJob(job.ID, "INFO", logMsg)
+		if e.DebugMode {
+            logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
+            if len(resp) > 0 {
+                var pretty bytes.Buffer
+                if err := json.Indent(&pretty, resp, "", "  "); err == nil {
+                    logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
+                } else {
+                    logMsg += fmt.Sprintf("\nResponse: %s", string(resp))
+                }
+            }
+            e.logToJob(job.ID, "INFO", logMsg)
+        }
 	}
 
 	finalStatus := "completed"

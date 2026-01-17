@@ -44,6 +44,7 @@ func InitDB(dbPath string) {
 		&WorkflowStep{},
 		&Job{},
 		&JobLog{},
+		&ProcessedEvent{},
 		&StateStore{},
 		&MessageTemplate{},
 		&SystemSetting{},

@@ -154,6 +154,14 @@ type JobLog struct {
 	Message   string    `json:"message"`
 }
 
+// ProcessedEvent tracks every event seen by the system for throughput metrics
+type ProcessedEvent struct {
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	TenantID        uint      `gorm:"index" json:"tenant_id"`
+	AuthMindIssueID string    `gorm:"index" json:"authmind_issue_id"`
+}
+
 // StateStore replaces 'latest_issue_ids.json'
 type StateStore struct {
 	Key   string `gorm:"primaryKey" json:"key"`
