@@ -100,7 +100,7 @@ func (e *ActionExecutor) Execute(integration database.Integration, definition da
 
 	// All retries failed: Increment circuit breaker
 	e.handleCircuitFailure(integration)
-	return nil, code, fmt.Errorf("all %d attempts failed. Last error: %v", maxRetries+1, lastErr)
+	return resp, code, fmt.Errorf("all %d attempts failed. Last error: %v", maxRetries+1, lastErr)
 }
 
 func (e *ActionExecutor) getLimiter(id uint, rateLimit float64) *rate.Limiter {

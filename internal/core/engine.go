@@ -361,7 +361,11 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 
 		resp, code, err := executor.Execute(integration, actionDef, contextData)
 		if err != nil {
-			e.logToJob(job.ID, "ERROR", fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err))
+            errMsg := fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err)
+            if len(resp) > 0 {
+                errMsg += fmt.Sprintf("\nResponse Body: %s", string(resp))
+            }
+			e.logToJob(job.ID, "ERROR", errMsg)
 			success = false
 			break
 		}
