@@ -188,6 +188,16 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     
     	for _, issue := range issues {
     		issueIDStr := issue.IssueID
+            
+            // Record processed event for metrics (deduplicated)
+            database.DB.Where(database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+            }).FirstOrCreate(&database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+            })
+
             if e.DebugMode {
                 log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
             }

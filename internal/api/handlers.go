@@ -390,6 +390,7 @@ func GetDashboardStats(c *gin.Context) {
 		FailedJobs      int64            `json:"failed_jobs"`
 		RunningJobs     int64            `json:"running_jobs"`
 		ActiveWorkflows int64            `json:"active_workflows"`
+        ProcessedEvents int64            `json:"processed_events"`
 		WorkflowBreakdown map[string]int64 `json:"workflow_breakdown"`
 	}
 
@@ -400,6 +401,7 @@ func GetDashboardStats(c *gin.Context) {
 	database.DB.Model(&database.Job{}).Where("tenant_id = ? AND status = ?", tenantID, "failed").Count(&stats.FailedJobs)
 	database.DB.Model(&database.Job{}).Where("tenant_id = ? AND status = ?", tenantID, "running").Count(&stats.RunningJobs)
 	database.DB.Model(&database.Workflow{}).Where("tenant_id = ? AND enabled = ?", tenantID, true).Count(&stats.ActiveWorkflows)
+    database.DB.Model(&database.ProcessedEvent{}).Where("tenant_id = ?", tenantID).Count(&stats.ProcessedEvents)
 
     // Calculate breakdown
     var results []struct {
@@ -650,6 +652,7 @@ func GetAggregateStats(c *gin.Context) {
 		RunningJobs     int64            `json:"running_jobs"`
 		TotalTenants    int64            `json:"total_tenants"`
 		ActiveWorkflows int64            `json:"active_workflows"`
+        ProcessedEvents int64            `json:"processed_events"`
 		TenantBreakdown []map[string]interface{} `json:"tenant_breakdown"`
 	}
 
@@ -659,12 +662,13 @@ func GetAggregateStats(c *gin.Context) {
 	database.DB.Model(&database.Job{}).Where("status = ?", "running").Count(&stats.RunningJobs)
 	database.DB.Model(&database.Tenant{}).Count(&stats.TotalTenants)
 	database.DB.Model(&database.Workflow{}).Where("enabled = ?", true).Count(&stats.ActiveWorkflows)
+    database.DB.Model(&database.ProcessedEvent{}).Count(&stats.ProcessedEvents)
 
 	// Calculate breakdown per tenant
-	database.DB.Table("jobs").
-		Select("tenants.name as tenant_name, count(jobs.id) as job_count, tenants.id as tenant_id").
-		Joins("left join tenants on tenants.id = jobs.tenant_id").
-		Group("tenants.id").
+	database.DB.Table("tenants").
+		Select("tenants.name as tenant_name, tenants.id as tenant_id, " +
+            "(SELECT count(*) FROM jobs WHERE jobs.tenant_id = tenants.id) as job_count, " +
+            "(SELECT count(*) FROM processed_events WHERE processed_events.tenant_id = tenants.id) as event_count").
 		Scan(&stats.TenantBreakdown)
 
 	c.JSON(http.StatusOK, stats)
