@@ -222,9 +222,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
                 
                 // Check Severity
                 wfSevScore := e.severityStringToInt(wf.MinSeverity)
-                if issueSevScore < wfSevScore {
+                if issueSevScore > wfSevScore {
                     if e.DebugMode {
-                        log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d < WF: %d)", wf.Name, issueSevScore, wfSevScore)
+                        log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d > WF: %d)", wf.Name, issueSevScore, wfSevScore)
                     }
                     continue
                 }
@@ -275,14 +275,13 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     
     func (e *Engine) severityStringToInt(sev string) int {
         switch sev {
-        case "Critical": return 4
-        case "High": return 3
-        case "Medium": return 2
-        case "Low": return 1
-        default: return 1
+        case "Critical": return 1
+        case "High": return 2
+        case "Medium": return 3
+        case "Low": return 4
+        default: return 4
         }
-    }
-    
+    }    
     func (e *Engine) RunWorkflow(wf database.Workflow, triggerContext map[string]interface{}) {
     	issueID := fmt.Sprintf("%v", triggerContext["IssueID"])
         tenantID := triggerContext["TenantID"].(uint)
