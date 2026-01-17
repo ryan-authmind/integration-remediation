@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"remediation-engine/internal/database"
 	"remediation-engine/internal/integrations"
@@ -35,6 +36,7 @@ type Engine struct {
 
     // SyncMode forces synchronous execution for testing
     SyncMode bool
+    DebugMode bool
 }
 
 func NewEngine() *Engine {
@@ -42,6 +44,7 @@ func NewEngine() *Engine {
         taskQueue:   make(chan PollingTask, 1000), // Buffered channel
         workerCount: 20,                           // Default 20 workers
 		lastRun:     make(map[uint]map[uint]time.Time),
+        DebugMode:   os.Getenv("DEBUG") == "true",
 	}
     return GlobalEngine
 }
@@ -179,13 +182,15 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     		return
     	}
         
-        if len(issues) > 0 {
+        if len(issues) > 0 && e.DebugMode {
             log.Printf("[Engine] Tenant %d: Fetched %d new issues from AuthMind (LastID: %s)", task.TenantID, len(issues), state.Value)
         }
     
     	for _, issue := range issues {
     		issueIDStr := issue.IssueID
-            log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
+            if e.DebugMode {
+                log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
+            }
     
     		userEmail := "Unknown"
     		if issue.IssueKeys != nil {
@@ -204,7 +209,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     		        // Fallback: If integer severity is missing (0), try to derive from Risk string
     		        if issueSevScore == 0 && issue.Risk != "" {
     		            issueSevScore = e.severityStringToInt(issue.Risk)
-    		            log.Printf("[Engine] Derived severity %d from Risk '%s'", issueSevScore, issue.Risk)
+                        if e.DebugMode {
+    		                log.Printf("[Engine] Derived severity %d from Risk '%s'", issueSevScore, issue.Risk)
+                        }
     		        }
     		
     				for _, wf := range task.Workflows {    			// Check Name Match
@@ -216,7 +223,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
                 // Check Severity
                 wfSevScore := e.severityStringToInt(wf.MinSeverity)
                 if issueSevScore < wfSevScore {
-                    log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d < WF: %d)", wf.Name, issueSevScore, wfSevScore)
+                    if e.DebugMode {
+                        log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d < WF: %d)", wf.Name, issueSevScore, wfSevScore)
+                    }
                     continue
                 }
     
@@ -249,11 +258,15 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     			}
     			
     			for _, runWf := range workflowsToRun {
-                    log.Printf("[Engine] Tenant %d: Queuing execution for WF '%s' on Issue %s", task.TenantID, runWf.Name, issueIDStr)
+                    if e.DebugMode {
+                        log.Printf("[Engine] Tenant %d: Queuing execution for WF '%s' on Issue %s", task.TenantID, runWf.Name, issueIDStr)
+                    }
     				e.RunWorkflow(runWf, contextData)
     			}
     		} else {
-                log.Printf("[Engine] Tenant %d: No matching workflows found for Issue %s", task.TenantID, issueIDStr)
+                if e.DebugMode {
+                    log.Printf("[Engine] Tenant %d: No matching workflows found for Issue %s", task.TenantID, issueIDStr)
+                }
             }
     		state.Value = issueIDStr
     		database.DB.Save(&state)
@@ -290,7 +303,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
             Count(&existing)
             
         if existing > 0 && triggerContext["ManualRerun"] != true {
-            log.Printf("[Engine] Job skipped: Duplicate execution for Tenant %d, WF %d, Issue %s", tenantID, wf.ID, issueID)
+            if e.DebugMode {
+                log.Printf("[Engine] Job skipped: Duplicate execution for Tenant %d, WF %d, Issue %s", tenantID, wf.ID, issueID)
+            }
             return
         }
 	if err := database.DB.Create(&job).Error; err != nil {
@@ -302,7 +317,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		}
 	}
 
-	log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s) - Steps: %d", tenantID, wf.Name, triggerContext["UserEmail"], issueID, len(wf.Steps))
+    if e.DebugMode {
+	    log.Printf("[Tenant:%d][Workflow:%s] Executing Workflow for %v (Issue:%s) - Steps: %d", tenantID, wf.Name, triggerContext["UserEmail"], issueID, len(wf.Steps))
+    }
 
 	lang := "en"
 	if val, ok := triggerContext["Language"].(string); ok {
@@ -376,16 +393,18 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 			break
 		}
 		
-		logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
-		if len(resp) > 0 {
-			var pretty bytes.Buffer
-			if err := json.Indent(&pretty, resp, "", "  "); err == nil {
-				logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
-			} else {
-				logMsg += fmt.Sprintf("\nResponse: %s", string(resp))
-			}
-		}
-		e.logToJob(job.ID, "INFO", logMsg)
+		if e.DebugMode {
+            logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
+            if len(resp) > 0 {
+                var pretty bytes.Buffer
+                if err := json.Indent(&pretty, resp, "", "  "); err == nil {
+                    logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
+                } else {
+                    logMsg += fmt.Sprintf("\nResponse: %s", string(resp))
+                }
+            }
+            e.logToJob(job.ID, "INFO", logMsg)
+        }
 	}
 
 	finalStatus := "completed"

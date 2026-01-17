@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"remediation-engine/internal/database"
 	"strconv"
 	"strings"
@@ -37,12 +38,14 @@ var NewExecutorFunc = func() Executor {
 }
 
 type ActionExecutor struct {
-	Client *http.Client
+	Client    *http.Client
+	DebugMode bool
 }
 
 func NewActionExecutor() *ActionExecutor {
 	return &ActionExecutor{
-		Client: &http.Client{Timeout: 15 * time.Second},
+		Client:    &http.Client{Timeout: 15 * time.Second},
+		DebugMode: os.Getenv("DEBUG") == "true",
 	}
 }
 
@@ -55,13 +58,15 @@ func (e *ActionExecutor) Execute(integration database.Integration, definition da
 	// 0. Handle Rate Limiting
 	if integration.RateLimit > 0 {
 		limiter := e.getLimiter(integration.ID, integration.RateLimit)
-		log.Printf("[Executor] Throttling enabled for %s (%.1f req/sec).", integration.Name, integration.RateLimit)
-		
+		if e.DebugMode {
+			log.Printf("[Executor] Throttling enabled for %s (%.1f req/sec).", integration.Name, integration.RateLimit)
+		}
+
 		ctx := context.Background() // Default context
 		if val, ok := contextData["_ctx"].(context.Context); ok {
 			ctx = val
 		}
-		
+
 		if err := limiter.Wait(ctx); err != nil {
 			return nil, 0, fmt.Errorf("rate limit wait failed: %v", err)
 		}
@@ -80,7 +85,9 @@ func (e *ActionExecutor) Execute(integration database.Integration, definition da
 		if i > 0 {
 			// Exponential backoff: 1s, 2s, 4s...
 			backoff := time.Duration(1<<uint(i-1)) * time.Second
-			log.Printf("[Executor] Retrying action %s (attempt %d/%d) after %v...", definition.Name, i, maxRetries, backoff)
+			if e.DebugMode {
+				log.Printf("[Executor] Retrying action %s (attempt %d/%d) after %v...", definition.Name, i, maxRetries, backoff)
+			}
 			time.Sleep(backoff)
 		}
 
@@ -95,6 +102,14 @@ func (e *ActionExecutor) Execute(integration database.Integration, definition da
 			// Success: Reset circuit breaker
 			e.handleCircuitSuccess(integration)
 			return resp, code, nil
+		}
+
+		// Fail fast on Auth errors
+		if code == 401 || code == 403 {
+			if e.DebugMode {
+				log.Printf("[Executor] Aborting retries for %s due to HTTP %d (Auth Error)", definition.Name, code)
+			}
+			break
 		}
 	}
 
@@ -156,7 +171,9 @@ func (e *ActionExecutor) executeREST(integration database.Integration, definitio
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to render body: %v", err)
 	}
-	log.Printf("[Executor] Request Payload (%s %s):\n%s", definition.Method, fullURL, body)
+	if e.DebugMode {
+		log.Printf("[Executor] Request Payload (%s %s):\n%s", definition.Method, fullURL, body)
+	}
 
 	// 3. Create Request
 	req, err := http.NewRequest(definition.Method, fullURL, bytes.NewBuffer([]byte(body)))
@@ -310,7 +327,9 @@ func (e *ActionExecutor) applyAuth(req *http.Request, integration database.Integ
 }
 
 func (e *ActionExecutor) refreshOAuth2Token(integ *database.Integration, creds map[string]string) (string, error) {
-	log.Printf("[Executor] Refreshing OAuth2 token for %s...", integ.Name)
+	if e.DebugMode {
+		log.Printf("[Executor] Refreshing OAuth2 token for %s...", integ.Name)
+	}
 	
 	form := url.Values{}
 	form.Add("grant_type", "client_credentials")
