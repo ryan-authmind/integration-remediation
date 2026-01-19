@@ -9,38 +9,30 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedDatabase loads seed data from JSON files if the database is empty
+// SeedDatabase loads seed data from JSON files and ensures they exist in the database
 func SeedDatabase(db *gorm.DB, seedDir string) {
-	log.Printf("[Seed] Checking if database needs seeding from %s...", seedDir)
+	log.Printf("[Seed] Syncing seed data from %s...", seedDir)
 
-	// 1. Check if we already have tenants
-	var tenantCount int64
-	db.Model(&Tenant{}).Count(&tenantCount)
-	if tenantCount > 0 {
-		log.Println("[Seed] Database already contains data. Skipping initial seeding to prevent overwriting.")
-		return
-	}
-
-	// 2. Load and seed Tenants
+	// 1. Load and seed Tenants
 	var tenants []Tenant
 	if err := loadSeedFile(seedDir, "tenants.json", &tenants); err == nil {
 		for _, t := range tenants {
-			db.Create(&t)
+			db.Where(Tenant{Name: t.Name}).FirstOrCreate(&t)
 		}
-		log.Printf("[Seed] Seeded %d tenants.", len(tenants))
+		log.Printf("[Seed] Synced tenants.")
 	}
 
-	// 3. Load and seed Integrations
+	// 2. Load and seed Integrations
 	var integrations []Integration
 	if err := loadSeedFile(seedDir, "integrations.json", &integrations); err == nil {
 		for _, i := range integrations {
-			db.Create(&i)
+            // Find by Name and TenantID
+			db.Where(Integration{Name: i.Name, TenantID: i.TenantID}).FirstOrCreate(&i)
 		}
-		log.Printf("[Seed] Seeded %d integrations.", len(integrations))
+		log.Printf("[Seed] Synced integrations.")
 	}
 
-	// 4. Load and seed Action Definitions
-	// Special handling: we might need to resolve integration IDs if they aren't static
+	// 3. Load and seed Action Definitions
 	var actions []struct {
 		ActionDefinition
 		IntegrationName string `json:"integration_name"`
@@ -52,42 +44,50 @@ func SeedDatabase(db *gorm.DB, seedDir string) {
 				db.Where("name = ? AND tenant_id = ?", a.IntegrationName, a.TenantID).First(&integ)
 				a.ActionDefinition.IntegrationID = integ.ID
 			}
-			db.Create(&a.ActionDefinition)
+            
+            // Check if action already exists for this tenant
+            var existing ActionDefinition
+            if err := db.Where("name = ? AND tenant_id = ?", a.Name, a.TenantID).First(&existing).Error; err != nil {
+                db.Create(&a.ActionDefinition)
+            }
 		}
-		log.Printf("[Seed] Seeded %d action definitions.", len(actions))
+		log.Printf("[Seed] Synced action definitions.")
 	}
 
-	// 5. Load and seed Workflows
+	// 4. Load and seed Workflows
 	var workflows []Workflow
 	if err := loadSeedFile(seedDir, "workflows.json", &workflows); err == nil {
 		for _, w := range workflows {
-			db.Create(&w)
+            var existing Workflow
+            if err := db.Where("name = ? AND tenant_id = ?", w.Name, w.TenantID).First(&existing).Error; err != nil {
+			    db.Create(&w)
+            }
 		}
-		log.Printf("[Seed] Seeded %d workflows.", len(workflows))
+		log.Printf("[Seed] Synced workflows.")
 	}
 
-	// 6. Load and seed Settings
+	// 5. Load and seed Settings
 	var settings []SystemSetting
 	if err := loadSeedFile(seedDir, "settings.json", &settings); err == nil {
 		for _, s := range settings {
-			db.Create(&s)
+			db.Where(SystemSetting{Key: s.Key}).FirstOrCreate(&s)
 		}
-		log.Printf("[Seed] Seeded %d system settings.", len(settings))
+		log.Printf("[Seed] Synced system settings.")
 	}
 
-	// 7. Load and seed Message Templates
-	var templates []MessageTemplate
-	if err := loadSeedFile(seedDir, "templates.json", &templates); err == nil {
-		for _, t := range templates {
-			db.Create(&t)
+	// 6. Load and seed Message Templates
+	var messageTemplates []MessageTemplate
+	if err := loadSeedFile(seedDir, "templates.json", &messageTemplates); err == nil {
+		for _, t := range messageTemplates {
+			db.Where(MessageTemplate{TenantID: t.TenantID, IssueType: t.IssueType, Language: t.Language}).FirstOrCreate(&t)
 		}
-		log.Printf("[Seed] Seeded %d message templates.", len(templates))
+		log.Printf("[Seed] Synced message templates.")
 	}
 
-    // 8. Special Case: Seed Default Steps for core workflows if they don't exist
+    // 7. Special Case: Seed Default Steps for core workflows if they don't exist
     seedDefaultWorkflowSteps(db)
 
-	log.Println("[Seed] Database seeding complete.")
+	log.Println("[Seed] Database sync complete.")
 }
 
 func loadSeedFile(dir, filename string, target interface{}) error {
