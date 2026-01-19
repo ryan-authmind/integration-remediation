@@ -79,5 +79,59 @@
     "method": "POST",
     "path_template": "/v1/ingestwebhooks/XXX",
     "body_template": "{\"principal\":{\"user\":{\"userid\":\"{{.UserEmail}}\"}}}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SailPoint: Disable Account",
+    "vendor": "SailPoint",
+    "integration_name": "SailPoint IdentityNow",
+    "method": "POST",
+    "path_template": "/v3/accounts/{{index .IssueKeys \"account_id\" | default \"REPLACE_ME\"}}/disable",
+    "body_template": "{}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SailPoint: Revoke Entitlement",
+    "vendor": "SailPoint",
+    "integration_name": "SailPoint IdentityNow",
+    "method": "POST",
+    "path_template": "/v3/access-requests",
+    "body_template": "{\n  \"requestedFor\": [\"{{.UserEmail}}\"],\n  \"requestType\": \"REVOKE_ACCESS\",\n  \"requestedItems\": [\n    {\n      \"id\": \"{{index .IssueKeys \"entitlement_id\" | default \"REPLACE_ME\"}}\",\n      \"type\": \"ENTITLEMENT\"\n    }\n  ],\n  \"comment\": \"Automatic revocation triggered by AuthMind remediation engine.\"\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SailPoint: Trigger Recertification",
+    "vendor": "SailPoint",
+    "integration_name": "SailPoint IdentityNow",
+    "method": "POST",
+    "path_template": "/v3/certification-campaigns",
+    "body_template": "{\n  \"name\": \"AuthMind Remediation: {{.IssueType}} - {{.UserEmail}}\",\n  \"description\": \"Targeted recertification for issue {{.IssueID}}\",\n  \"type\": \"IDENTITY\",\n  \"filter\": {\n    \"type\": \"IDENTITY\",\n    \"id\": \"{{.UserEmail}}\"\n  }\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Saviynt: Disable User",
+    "vendor": "Saviynt",
+    "integration_name": "Saviynt IGA",
+    "method": "POST",
+    "path_template": "/updateUser",
+    "body_template": "{\n  \"username\": \"{{.UserEmail}}\",\n  \"statuskey\": \"0\",\n  \"enabled\": \"false\"\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Saviynt: Remove Entitlement",
+    "vendor": "Saviynt",
+    "integration_name": "Saviynt IGA",
+    "method": "POST",
+    "path_template": "/removeEntitlementFromUser",
+    "body_template": "{\n  \"username\": \"{{.UserEmail}}\",\n  \"entitlementName\": \"{{index .IssueKeys \"entitlement\" | default \"REPLACE_ME\"}}\"\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "Saviynt: Trigger Recertification",
+    "vendor": "Saviynt",
+    "integration_name": "Saviynt IGA",
+    "method": "POST",
+    "path_template": "/createCertificationCampaign",
+    "body_template": "{\n  \"campaignname\": \"AuthMind Remediation - {{.IssueID}}\",\n  \"type\": \"User\",\n  \"userlist\": \"{{.UserEmail}}\"\n}"
   }
 ]

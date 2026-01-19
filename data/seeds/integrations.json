@@ -72,5 +72,24 @@
     "auth_type": "apikey",
     "credentials": "{\"header_name\":\"Authorization\",\"api_key\":\"Bearer token\"}",
     "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "SailPoint IdentityNow",
+    "type": "REST",
+    "base_url": "https://{tenant}.api.identitynow.com",
+    "auth_type": "oauth2",
+    "credentials": "{\"client_id\":\"your-id\",\"client_secret\":\"your-secret\"}",
+    "token_endpoint": "https://{tenant}.api.identitynow.com/oauth/token",
+    "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Saviynt IGA",
+    "type": "REST",
+    "base_url": "https://{tenant}.saviyntcloud.com/ECM/api/v1",
+    "auth_type": "apikey",
+    "credentials": "{\"header_name\":\"X-API-Key\",\"api_key\":\"your-key\"}",
+    "enabled": true
   }
 ]
