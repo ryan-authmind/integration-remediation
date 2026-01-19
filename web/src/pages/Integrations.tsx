@@ -62,6 +62,8 @@ const getVendorLogo = (name: string) => {
     if (n.includes('okta')) return '/vendors/okta.png';
     if (n.includes('torq')) return '/vendors/torq.png';
     if (n.includes('google') || n.includes('secops')) return '/vendors/google.png';
+    if (n.includes('sailpoint')) return '/vendors/sailpoint.png';
+    if (n.includes('saviynt')) return '/vendors/saviynt.png';
     return null;
 };
 
