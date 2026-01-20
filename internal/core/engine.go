@@ -247,7 +247,28 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     			if err != nil {
     				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
     				details = &integrations.IssueDetails{Results: []integrations.IssueDetailItem{{Message: "Details unavailable (API Error)", Risk: "Unknown"}}}
-    			}
+    			} else if details != nil && len(details.Results) > 0 {
+                    // Enrichment: Try to improve fields if details are present
+                    res := details.Results[0]
+                    if userEmail == "Unknown" && len(res.Incidents) > 0 {
+                        userEmail = res.Incidents[0].IdentityName
+                    }
+                    if issue.IssueKeys == nil {
+                        issue.IssueKeys = make(map[string]interface{})
+                    }
+                    if len(res.Incidents) > 0 {
+                        if _, ok := issue.IssueKeys["site_code"]; !ok {
+                            issue.IssueKeys["site_code"] = res.Incidents[0].SiteCode
+                        }
+                    }
+                    if res.IssueKeys != nil {
+                        for k, v := range res.IssueKeys {
+                            if _, ok := issue.IssueKeys[k]; !ok {
+                                issue.IssueKeys[k] = v
+                            }
+                        }
+                    }
+                }
     
     			contextData := map[string]interface{}{
                     "TenantID":      task.TenantID, // Inject TenantID into context
