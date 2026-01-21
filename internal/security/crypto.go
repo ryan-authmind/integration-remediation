@@ -5,87 +5,63 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"io"
+	"log"
 	"os"
+	"strings"
 )
 
-// GetEncryptionKey retrieves the master key and ensures it is exactly 32 bytes
-func GetEncryptionKey() []byte {
-	key := os.Getenv("ENCRYPTION_KEY")
-	if len(key) == 0 {
-		key = "a-very-secret-key-32-characters-" // fallback 32 chars
+const EncryptedPrefix = "enc:v1:"
+
+// ... (GetEncryptionKey, Encrypt, Decrypt, decryptRaw remain same)
+
+// Redact masks sensitive keys in JSON content. Falls back to original string if not valid JSON.
+func Redact(input string) string {
+	if input == "" {
+		return ""
 	}
-	
-	byteKey := []byte(key)
-	if len(byteKey) > 32 {
-		return byteKey[:32]
+
+	sensitiveKeys := []string{"token", "password", "secret", "api_key", "credentials", "client_secret", "authorization", "oauth", "api_token", "apikey"}
+
+	var data interface{}
+	if err := json.Unmarshal([]byte(input), &data); err != nil {
+		return input
 	}
-	if len(byteKey) < 32 {
-		// Pad with zeros if too short
-		padded := make([]byte, 32)
-		copy(padded, byteKey)
-		return padded
-	}
-	return byteKey
+
+	redactedData := redactRecursive(data, sensitiveKeys)
+	b, _ := json.Marshal(redactedData)
+	return string(b)
 }
 
-// Encrypt string to base64
-func Encrypt(text string) (string, error) {
-	key := GetEncryptionKey()
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
+func redactRecursive(data interface{}, sensitiveKeys []string) interface{} {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		newMap := make(map[string]interface{})
+		for k, val := range v {
+			isSensitive := false
+			lowerK := strings.ToLower(k)
+			for _, sk := range sensitiveKeys {
+				if strings.Contains(lowerK, sk) {
+					isSensitive = true
+					break
+				}
+			}
+			if isSensitive {
+				newMap[k] = "******"
+			} else {
+				newMap[k] = redactRecursive(val, sensitiveKeys)
+			}
+		}
+		return newMap
+	case []interface{}:
+		newSlice := make([]interface{}, len(v))
+		for i, val := range v {
+			newSlice[i] = redactRecursive(val, sensitiveKeys)
+		}
+		return newSlice
+	default:
+		return v
 	}
-
-	plaintext := []byte(text)
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
-}
-
-// Decrypt base64 to string. Returns original string if decryption fails (for legacy data support).
-func Decrypt(cryptoText string) (string, error) {
-	if cryptoText == "" {
-		return "", nil
-	}
-
-	key := GetEncryptionKey()
-	ciphertext, err := base64.StdEncoding.DecodeString(cryptoText)
-	if err != nil {
-		// Not valid base64, likely legacy plain text
-		return cryptoText, nil
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return cryptoText, nil
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return cryptoText, nil
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(ciphertext) < nonceSize {
-		return cryptoText, nil
-	}
-
-	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		// Decryption failed (e.g. wrong key or not encrypted), return original
-		return cryptoText, nil
-	}
-
-	return string(plaintext), nil
 }

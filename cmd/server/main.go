@@ -26,7 +26,7 @@ func main() {
 
                 // 2. Initialize Database
 
-                database.InitDB("data/remediation.db")
+                database.InitDB("tenant/data/remediation.db")
 
         
 
@@ -44,26 +44,131 @@ func main() {
 
         
 
-                // 5. Setup Web Server
+                	// 5. Setup Web Server
 
-                r := gin.Default()
+        
 
-    // CORS Middleware
-    r.Use(func(c *gin.Context) {
-        c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        if c.Request.Method == "OPTIONS" {
-            c.AbortWithStatus(204)
-            return
-        }
-        c.Next()
-    })
+                
 
-    // API Routes
-    apiRoutes := r.Group("/api")
-    {
-        apiRoutes.GET("/integrations", api.GetIntegrations)
+        
+
+                                r := gin.Default()
+
+        
+
+                
+
+        
+
+                    // CORS Middleware
+
+        
+
+                    r.Use(func(c *gin.Context) {
+
+        
+
+                        allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+
+        
+
+                        if allowedOrigin == "" {
+
+        
+
+                            allowedOrigin = "http://localhost:5173" // Default Vite dev port
+
+        
+
+                        }
+
+        
+
+                        
+
+        
+
+                        origin := c.Request.Header.Get("Origin")
+
+        
+
+                        // Allow if origin matches allowed or if no origin (server-to-server/curl)
+
+        
+
+                        if origin == allowedOrigin || origin == "" {
+
+        
+
+                             c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+
+        
+
+                        }
+
+        
+
+                        
+
+        
+
+                        c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+        
+
+                        c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID, X-API-Key")
+
+        
+
+                        if c.Request.Method == "OPTIONS" {
+
+        
+
+                            c.AbortWithStatus(204)
+
+        
+
+                            return
+
+        
+
+                        }
+
+        
+
+                        c.Next()
+
+        
+
+                    })
+
+        
+
+                
+
+        
+
+                    // API Routes
+
+        
+
+                    apiRoutes := r.Group("/api")
+
+        
+
+                    apiRoutes.Use(api.AuthMiddleware())
+
+        
+
+                    {
+
+        
+
+                        apiRoutes.GET("/integrations", api.GetIntegrations)
+
+        
+
+                
         apiRoutes.POST("/integrations", api.CreateIntegration)
         apiRoutes.PUT("/integrations", api.UpdateIntegration)
         apiRoutes.PUT("/integrations/:id/reset", api.ResetIntegrationCircuitBreaker)

@@ -65,6 +65,7 @@ interface Stats {
     total_tenants?: number;
     workflow_breakdown?: Record<string, number>;
     tenant_breakdown?: Array<{tenant_name: string, job_count: number, event_count: number, tenant_id: number}>;
+    event_breakdown?: Record<string, number>;
 }
 
 interface Tenant {
@@ -328,6 +329,20 @@ export default function Dashboard() {
       { name: 'Failed', value: stats.failed_jobs, color: '#FF4C4C' },   
   ];
 
+  const eventBreakdownData = stats.event_breakdown 
+    ? Object.entries(stats.event_breakdown).map(([status, count]) => {
+        let name = status;
+        let color = '#8884d8';
+        switch(status) {
+            case 'triggered': name = 'Triggered'; color = '#00D1B2'; break;
+            case 'filtered_severity': name = 'Filtered (Severity)'; color = '#FFBB28'; break;
+            case 'filtered_type': name = 'Filtered (Type)'; color = '#FF8042'; break;
+            case 'no_workflow': name = 'No Matching Workflow'; color = '#AAAAAA'; break;
+        }
+        return { name, value: count, color };
+    })
+    : [];
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
@@ -417,12 +432,12 @@ export default function Dashboard() {
           </Grid>
           <Grid item xs={12} md={4}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Success vs Failure</Typography>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Event Processing Breakdown</Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
                             <Pie
-                                data={statusData}
+                                data={eventBreakdownData.length > 0 ? eventBreakdownData : [{name: 'No Data', value: 1, color: '#eee'}]}
                                 cx="50%"
                                 cy="50%"
                                 innerRadius={60}
@@ -430,7 +445,7 @@ export default function Dashboard() {
                                 paddingAngle={5}
                                 dataKey="value"
                             >
-                                {statusData.map((entry, index) => (
+                                {eventBreakdownData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
                             </Pie>
@@ -438,6 +453,17 @@ export default function Dashboard() {
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>
+                  </Box>
+                  <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {eventBreakdownData.map((d) => (
+                          <Chip 
+                            key={d.name} 
+                            label={`${d.name}: ${d.value}`} 
+                            size="small" 
+                            variant="outlined" 
+                            sx={{ borderColor: d.color, color: 'text.primary', fontWeight: 600 }} 
+                          />
+                      ))}
                   </Box>
               </Paper>
           </Grid>

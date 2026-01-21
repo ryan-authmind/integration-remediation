@@ -49,3 +49,32 @@ func TestIntegrationHooks(t *testing.T) {
 	assert.NotEqual(t, creds, rawCreds)
 	assert.NotContains(t, rawCreds, "password")
 }
+
+func TestTenantEncryption(t *testing.T) {
+	// Setup env for crypto
+	os.Setenv("ENCRYPTION_KEY", "12345678901234567890123456789012")
+
+	InitDB(":memory:")
+
+	apiKey := "my-super-secret-api-key"
+	tenant := Tenant{
+		Name:   "Secure Tenant",
+		APIKey: &apiKey,
+	}
+
+	err := DB.Create(&tenant).Error
+	require.NoError(t, err)
+
+	// Verify encryption in DB
+	var rawKey string
+	DB.Raw("SELECT api_key FROM tenants WHERE id = ?", tenant.ID).Scan(&rawKey)
+	assert.NotEqual(t, apiKey, rawKey)
+	assert.Contains(t, rawKey, "enc:v1:") // Check for the new prefix
+
+	// Verify decryption on read
+	var readBack Tenant
+	err = DB.First(&readBack, tenant.ID).Error
+	assert.NoError(t, err)
+	require.NotNil(t, readBack.APIKey)
+	assert.Equal(t, apiKey, *readBack.APIKey)
+}
