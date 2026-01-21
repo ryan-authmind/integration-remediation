@@ -48,6 +48,7 @@ func InitDB(dbPath string) {
 		&StateStore{},
 		&MessageTemplate{},
 		&SystemSetting{},
+		&RemediationRecommendation{},
 	)
 
 	// Re-enable foreign keys
