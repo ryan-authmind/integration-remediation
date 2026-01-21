@@ -378,6 +378,16 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		database.DB.Where("issue_type = ? AND language = ?", templateIssueType, "en").First(&msgTemplate)
 	}
 
+    // Fetch Remediation Recommendation
+    var remediation database.RemediationRecommendation
+    // Try exact match on IssueType
+    if err := database.DB.Where("issue_type = ?", templateIssueType).First(&remediation).Error; err != nil {
+        // Fallback: Try to find a recommendation that matches the Workflow Name if IssueType didn't work
+        if templateIssueType != wf.Name {
+             database.DB.Where("issue_type = ?", wf.Name).First(&remediation)
+        }
+    }
+
 	executor := NewExecutorFunc()
 	success := true
 
@@ -416,6 +426,14 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		contextData["Title"] = msgTemplate.Title
 		contextData["Message"] = msgTemplate.Message
 		contextData["Footer"] = msgTemplate.Footer
+
+        // Inject Remediation Data
+        if remediation.ID != 0 {
+            contextData["RemediationTitle"] = remediation.Title
+            contextData["RemediationDescription"] = remediation.Description
+            contextData["RemediationSteps"] = remediation.Steps
+            contextData["RemediationURL"] = remediation.ReferenceURL
+        }
 
 		var stepParams map[string]interface{}
 		json.Unmarshal([]byte(step.ParameterMapping), &stepParams)
