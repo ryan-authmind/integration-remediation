@@ -9,6 +9,7 @@ import (
 	"sort"
 	"remediation-engine/internal/database"
 	"remediation-engine/internal/integrations"
+	"remediation-engine/internal/security"
 	"strconv"
 	"sync"
 	"time"
@@ -189,14 +190,8 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     	for _, issue := range issues {
     		issueIDStr := issue.IssueID
             
-            // Record processed event for metrics (deduplicated)
-            database.DB.Where(database.ProcessedEvent{
-                TenantID:        task.TenantID,
-                AuthMindIssueID: issueIDStr,
-            }).FirstOrCreate(&database.ProcessedEvent{
-                TenantID:        task.TenantID,
-                AuthMindIssueID: issueIDStr,
-            })
+            // Initial event status
+            eventStatus := "no_workflow"
 
             if e.DebugMode {
                 log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
@@ -236,6 +231,9 @@ func (e *Engine) pollAuthMind(task PollingTask) {
                     if e.DebugMode {
                         log.Printf("[Engine] Skipping WF '%s' - Severity too low (Issue: %d > WF: %d)", wf.Name, issueSevScore, wfSevScore)
                     }
+                    if eventStatus == "no_workflow" {
+                        eventStatus = "filtered_severity"
+                    }
                     continue
                 }
     
@@ -243,6 +241,7 @@ func (e *Engine) pollAuthMind(task PollingTask) {
     		}
     
     		if len(workflowsToRun) > 0 {
+                eventStatus = "triggered"
     			details, err := sdk.GetIssueDetails(issueIDStr)
     			if err != nil {
     				log.Printf("[Engine] Warning: Failed to fetch details for issue %s: %v", issueIDStr, err)
@@ -299,6 +298,18 @@ func (e *Engine) pollAuthMind(task PollingTask) {
                     log.Printf("[Engine] Tenant %d: No matching workflows found for Issue %s", task.TenantID, issueIDStr)
                 }
             }
+
+            // Record processed event with final status (deduplicated)
+            database.DB.Where(database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+            }).FirstOrCreate(&database.ProcessedEvent{
+                TenantID:        task.TenantID,
+                AuthMindIssueID: issueIDStr,
+                Status:          eventStatus,
+                Risk:            issue.Risk,
+            })
+
     		state.Value = issueIDStr
     		database.DB.Save(&state)
     	}
@@ -416,25 +427,35 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		if err != nil {
             errMsg := fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err)
             if len(resp) > 0 {
-                errMsg += fmt.Sprintf("\nResponse Body: %s", string(resp))
+                errMsg += fmt.Sprintf("\nResponse Body: %s", security.Redact(string(resp)))
             }
 			e.logToJob(job.ID, "ERROR", errMsg)
 			success = false
 			break
 		}
 		
-		if e.DebugMode {
-            logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
-            if len(resp) > 0 {
+        // Always log success for visibility, but redact response
+        logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
+        if len(resp) > 0 {
+            redactedResp := security.Redact(string(resp))
+            if e.DebugMode {
                 var pretty bytes.Buffer
-                if err := json.Indent(&pretty, resp, "", "  "); err == nil {
+                if err := json.Indent(&pretty, []byte(redactedResp), "", "  "); err == nil {
                     logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
                 } else {
-                    logMsg += fmt.Sprintf("\nResponse: %s", string(resp))
+                    logMsg += fmt.Sprintf("\nResponse: %s", redactedResp)
+                }
+            } else {
+                // In non-debug mode, maybe just log a snippet or nothing if it's too large?
+                // For now, let's log the redacted response but limited size.
+                if len(redactedResp) > 500 {
+                    logMsg += fmt.Sprintf("\nResponse (truncated): %s...", redactedResp[:500])
+                } else {
+                    logMsg += fmt.Sprintf("\nResponse: %s", redactedResp)
                 }
             }
-            e.logToJob(job.ID, "INFO", logMsg)
         }
+        e.logToJob(job.ID, "INFO", logMsg)
 	}
 
 	finalStatus := "completed"

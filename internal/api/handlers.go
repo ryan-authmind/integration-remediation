@@ -26,6 +26,15 @@ func GetIntegrations(c *gin.Context) {
     } else {
         query.Where("tenant_id = ?", tenantID).Find(&integrations)
     }
+
+    // Security: Mask credentials before returning to client
+    for i := range integrations {
+        if integrations[i].Credentials != "" {
+            integrations[i].Credentials = "******"
+        }
+        integrations[i].OAuthToken = ""
+    }
+
 	c.JSON(http.StatusOK, integrations)
 }
 
@@ -38,73 +47,29 @@ func CreateIntegration(c *gin.Context) {
 	}
 
     input.TenantID = tenancy.ResolveTenantID(c)
+    input.Enabled = false // Disabled by default for security
 
 		if err := database.DB.Create(&input).Error; err != nil {
-
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-
 			return
-
 		}
 
-	
-
 	        // Seed default AuthMind Poller for the new tenant
-
-	
-
 	        defaultPoller := database.Integration{
-
-	
-
 	            TenantID:               input.ID,
-
-	
-
 	            Name:                   "AuthMind Poller",
-
-	
-
 	            Type:                   "REST",
-
-	
-
 	            BaseURL:                "https://<tenant-id>.authmind.com/amapi/v1",
-
-	
-
 	            AuthType:               "bearer",
-
-	
-
-	            Credentials:            `{\"token\": \"placeholder\"}`,
-
-	
-
+	            Credentials:            `{"token": "placeholder"}`,
 	            PollingInterval:        60,
-
-	
-
 	            RotationInterval:       0,
-
-	
-
-	            Enabled:                false, // Disabled until configured
-
-	
-
+	            Enabled:                true, // The Poller IS enabled by default to allow initial fetching
 	            IsAvailable:           true,
-
-	
-
 	        }
-
 	    database.DB.Create(&defaultPoller)
 
-	
-
 		c.JSON(http.StatusCreated, input)
-
 	}
 
 // CreateActionDefinition adds a new action template
@@ -183,6 +148,27 @@ func UpdateActionDefinition(c *gin.Context) {
 		return
 	}
 
+    tenantID := tenancy.ResolveTenantID(c)
+    
+    // IDOR Check & Existence
+    var existing database.ActionDefinition
+    query := database.DB.Where("id = ?", input.ID)
+    if tenantID != 0 {
+        query = query.Where("tenant_id = ?", tenantID)
+    }
+
+    if err := query.First(&existing).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "action definition not found or access denied"})
+        return
+    }
+
+    // Preserve existing TenantID if updating via global view
+    if tenantID == 0 {
+        input.TenantID = existing.TenantID
+    } else {
+        input.TenantID = tenantID
+    }
+
 	database.DB.Save(&input)
 	c.JSON(http.StatusOK, input)
 }
@@ -195,10 +181,33 @@ func UpdateIntegration(c *gin.Context) {
 		return
 	}
 
-    input.TenantID = tenancy.ResolveTenantID(c)
+    tenantID := tenancy.ResolveTenantID(c)
+
+    // IDOR Check & Existence
+    var existing database.Integration
+    query := database.DB.Where("id = ?", input.ID)
+    if tenantID != 0 {
+        query = query.Where("tenant_id = ?", tenantID)
+    }
+
+    if err := query.First(&existing).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "integration not found or access denied"})
+        return
+    }
+
+    // Security: Don't overwrite credentials with mask if sent back by UI
+    if input.Credentials == "******" {
+        input.Credentials = existing.Credentials 
+    }
+
+    // Preserve existing TenantID if updating via global view
+    if tenantID == 0 {
+        input.TenantID = existing.TenantID
+    } else {
+        input.TenantID = tenantID
+    }
 
     // Protect circuit breaker state from being overwritten by UI updates
-    // We use Omit to keep current DB values for these fields
 	database.DB.Model(&input).Omit("is_available", "consecutive_failures").Save(&input)
 	c.JSON(http.StatusOK, input)
 }
@@ -209,8 +218,13 @@ func ResetIntegrationCircuitBreaker(c *gin.Context) {
     tenantID := tenancy.ResolveTenantID(c)
 
     var integration database.Integration
+    query := database.DB.Where("id = ?", id)
+    if tenantID != 0 {
+        query = query.Where("tenant_id = ?", tenantID)
+    }
+
     // Verify existence and ownership
-    if err := database.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&integration).Error; err != nil {
+    if err := query.First(&integration).Error; err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "integration not found"})
         return
     }
@@ -262,15 +276,24 @@ func UpdateWorkflow(c *gin.Context) {
 		return
 	}
 
+    tenantID := tenancy.ResolveTenantID(c)
+
+    // IDOR Check
+    var existing database.Workflow
+    if err := database.DB.Where("id = ? AND tenant_id = ?", workflow.ID, tenantID).First(&existing).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found or access denied"})
+        return
+    }
+
 	// Use a transaction to update workflow and its steps
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. Update basic info
-		if err := tx.Model(&workflow).Select("name", "description", "enabled", "trigger_type", "min_severity").Updates(workflow).Error; err != nil {
+		if err := tx.Model(&workflow).Where("id = ?", workflow.ID).Select("name", "description", "enabled", "trigger_type", "min_severity").Updates(workflow).Error; err != nil {
 			return err
 		}
 
         // 2. Sync Pollers (Many-to-Many)
-        if err := tx.Model(&workflow).Association("AuthMindPollers").Replace(workflow.AuthMindPollers); err != nil {
+        if err := tx.Model(&existing).Association("AuthMindPollers").Replace(workflow.AuthMindPollers); err != nil {
             return err
         }
 
@@ -301,7 +324,9 @@ func UpdateWorkflow(c *gin.Context) {
 // DeleteWorkflow archives a workflow using soft delete
 func DeleteWorkflow(c *gin.Context) {
 	id := c.Param("id")
-	if err := database.DB.Delete(&database.Workflow{}, id).Error; err != nil {
+    tenantID := tenancy.ResolveTenantID(c)
+
+	if err := database.DB.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&database.Workflow{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -344,6 +369,20 @@ func GetJobs(c *gin.Context) {
 // GetJobLogs returns detailed logs for a specific job
 func GetJobLogs(c *gin.Context) {
 	id := c.Param("id")
+    tenantID := tenancy.ResolveTenantID(c)
+
+    // Verify job belongs to tenant
+    var job database.Job
+    query := database.DB.Where("id = ?", id)
+    if tenantID != 0 {
+        query = query.Where("tenant_id = ?", tenantID)
+    }
+
+    if err := query.First(&job).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+        return
+    }
+
 	var logs []database.JobLog
 	database.DB.Where("job_id = ?", id).Find(&logs)
 	c.JSON(http.StatusOK, logs)
@@ -352,8 +391,15 @@ func GetJobLogs(c *gin.Context) {
 // RerunJob triggers a manual execution of a previous job's workflow
 func RerunJob(c *gin.Context) {
 	id := c.Param("id")
+    tenantID := tenancy.ResolveTenantID(c)
+
 	var oldJob database.Job
-	if err := database.DB.Preload("Workflow").Preload("Workflow.Steps.ActionDefinition").First(&oldJob, id).Error; err != nil {
+    query := database.DB.Preload("Workflow").Preload("Workflow.Steps.ActionDefinition").Where("id = ?", id)
+    if tenantID != 0 {
+        query = query.Where("tenant_id = ?", tenantID)
+    }
+
+	if err := query.First(&oldJob).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
 		return
 	}
@@ -370,7 +416,7 @@ func RerunJob(c *gin.Context) {
 	
 	contextData["Timestamp"] = time.Now().Format(time.RFC3339)
 	contextData["ManualRerun"] = true
-    contextData["TenantID"] = tenancy.ResolveTenantID(c)
+    contextData["TenantID"] = oldJob.TenantID // Use the original tenant ID from the job
 
 	// To get the real UserEmail, we try to find it in the logs or state
 	// For now, we use the engine's exported RunWorkflow
@@ -392,6 +438,7 @@ func GetDashboardStats(c *gin.Context) {
 		ActiveWorkflows int64            `json:"active_workflows"`
         ProcessedEvents int64            `json:"processed_events"`
 		WorkflowBreakdown map[string]int64 `json:"workflow_breakdown"`
+        EventBreakdown    []map[string]interface{} `json:"event_breakdown"`
 	}
 
     tenantID := tenancy.ResolveTenantID(c)
@@ -403,7 +450,7 @@ func GetDashboardStats(c *gin.Context) {
 	database.DB.Model(&database.Workflow{}).Where("tenant_id = ? AND enabled = ?", tenantID, true).Count(&stats.ActiveWorkflows)
     database.DB.Model(&database.ProcessedEvent{}).Where("tenant_id = ?", tenantID).Count(&stats.ProcessedEvents)
 
-    // Calculate breakdown
+    // Calculate workflow breakdown
     var results []struct {
         Name  string
         Count int64
@@ -419,6 +466,17 @@ func GetDashboardStats(c *gin.Context) {
     for _, r := range results {
         stats.WorkflowBreakdown[r.Name] = r.Count
     }
+
+    // Calculate detailed event breakdown by Risk and Status
+    database.DB.Model(&database.ProcessedEvent{}).
+        Select("risk, " +
+            "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
+            "SUM(CASE WHEN status = 'filtered_severity' THEN 1 ELSE 0 END) as filtered_severity, " +
+            "SUM(CASE WHEN status = 'filtered_type' THEN 1 ELSE 0 END) as filtered_type, " +
+            "SUM(CASE WHEN status = 'no_workflow' THEN 1 ELSE 0 END) as no_workflow").
+        Where("tenant_id = ?", tenantID).
+        Group("risk").
+        Scan(&stats.EventBreakdown)
 
 	c.JSON(http.StatusOK, stats)
 }
@@ -653,6 +711,7 @@ func GetAggregateStats(c *gin.Context) {
 		TotalTenants    int64            `json:"total_tenants"`
 		ActiveWorkflows int64            `json:"active_workflows"`
         ProcessedEvents int64            `json:"processed_events"`
+        EventBreakdown    []map[string]interface{} `json:"event_breakdown"`
 		TenantBreakdown []map[string]interface{} `json:"tenant_breakdown"`
 	}
 
@@ -663,6 +722,16 @@ func GetAggregateStats(c *gin.Context) {
 	database.DB.Model(&database.Tenant{}).Count(&stats.TotalTenants)
 	database.DB.Model(&database.Workflow{}).Where("enabled = ?", true).Count(&stats.ActiveWorkflows)
     database.DB.Model(&database.ProcessedEvent{}).Count(&stats.ProcessedEvents)
+
+    // Calculate global event breakdown by Risk and Status
+    database.DB.Model(&database.ProcessedEvent{}).
+        Select("risk, " +
+            "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
+            "SUM(CASE WHEN status = 'filtered_severity' THEN 1 ELSE 0 END) as filtered_severity, " +
+            "SUM(CASE WHEN status = 'filtered_type' THEN 1 ELSE 0 END) as filtered_type, " +
+            "SUM(CASE WHEN status = 'no_workflow' THEN 1 ELSE 0 END) as no_workflow").
+        Group("risk").
+        Scan(&stats.EventBreakdown)
 
 	// Calculate breakdown per tenant
 	database.DB.Table("tenants").

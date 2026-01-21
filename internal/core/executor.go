@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"remediation-engine/internal/database"
+    "remediation-engine/internal/security"
 	"strconv"
 	"strings"
 	"sync"
@@ -172,7 +173,7 @@ func (e *ActionExecutor) executeREST(integration database.Integration, definitio
 		return nil, 0, fmt.Errorf("failed to render body: %v", err)
 	}
 	if e.DebugMode {
-		log.Printf("[Executor] Request Payload (%s %s):\n%s", definition.Method, fullURL, body)
+		log.Printf("[Executor] Request Payload (%s %s):\n%s", definition.Method, fullURL, security.Redact(body))
 	}
 
 	// 3. Create Request

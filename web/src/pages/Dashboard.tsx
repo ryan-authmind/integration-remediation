@@ -49,10 +49,7 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+  ResponsiveContainer
 } from 'recharts';
 
 interface Stats {
@@ -65,6 +62,7 @@ interface Stats {
     total_tenants?: number;
     workflow_breakdown?: Record<string, number>;
     tenant_breakdown?: Array<{tenant_name: string, job_count: number, event_count: number, tenant_id: number}>;
+    event_breakdown?: Array<{risk: string, triggered: number, filtered_severity: number, filtered_type: number, no_workflow: number}>;
 }
 
 interface Tenant {
@@ -323,10 +321,19 @@ export default function Dashboard() {
     ? stats.tenant_breakdown.map(t => ({ name: t.tenant_name || `ID:${t.tenant_id}`, executions: t.job_count, events: t.event_count }))
     : [];
 
-  const statusData = [
-      { name: 'Success', value: stats.success_jobs, color: '#00D1B2' }, 
-      { name: 'Failed', value: stats.failed_jobs, color: '#FF4C4C' },   
-  ];
+  const eventBreakdownData = stats.event_breakdown 
+    ? stats.event_breakdown.map(item => ({
+        name: item.risk || 'Unknown',
+        triggered: item.triggered,
+        filtered_severity: item.filtered_severity,
+        filtered_type: item.filtered_type,
+        no_workflow: item.no_workflow,
+        total: item.triggered + item.filtered_severity + item.filtered_type + item.no_workflow
+    })).sort((a, b) => {
+        const order = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'None': 4 };
+        return (order[a.name as keyof typeof order] ?? 99) - (order[b.name as keyof typeof order] ?? 99);
+    })
+    : [];
 
   return (
     <Box>
@@ -417,27 +424,37 @@ export default function Dashboard() {
           </Grid>
           <Grid item xs={12} md={4}>
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Success vs Failure</Typography>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Event Risk Distribution</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                      Breakdown of all processed events by Risk and processing outcome.
+                  </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={statusData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {statusData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={eventBreakdownData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                            <YAxis tick={{ fontSize: 11 }} />
                             <RechartsTooltip />
-                            <Legend />
-                        </PieChart>
+                            <Legend wrapperStyle={{ fontSize: '10px' }} />
+                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#00D1B2" />
+                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#FFBB28" />
+                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#FF8042" />
+                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#AAAAAA" />
+                        </BarChart>
                     </ResponsiveContainer>
+                  </Box>
+                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {eventBreakdownData.map((d) => (
+                          <Box key={d.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 60 }}>{d.name}</Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#00D1B2', color: 'white' }} />}
+                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FFBB28', color: 'white' }} />}
+                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FF8042', color: 'white' }} />}
+                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#AAAAAA', color: 'white' }} />}
+                              </Box>
+                          </Box>
+                      ))}
                   </Box>
               </Paper>
           </Grid>

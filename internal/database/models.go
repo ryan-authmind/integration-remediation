@@ -67,6 +67,30 @@ func (i *Integration) AfterFind(tx *gorm.DB) (err error) {
 	return
 }
 
+// BeforeSave hook to encrypt tenant API key
+func (t *Tenant) BeforeSave(tx *gorm.DB) (err error) {
+	if t.APIKey != nil && *t.APIKey != "" {
+		encrypted, err := security.Encrypt(*t.APIKey)
+		if err != nil {
+			return err
+		}
+		t.APIKey = &encrypted
+	}
+	return
+}
+
+// AfterFind hook to decrypt tenant API key
+func (t *Tenant) AfterFind(tx *gorm.DB) (err error) {
+	if t.APIKey != nil && *t.APIKey != "" {
+		decrypted, err := security.Decrypt(*t.APIKey)
+		if err != nil {
+			return err
+		}
+		t.APIKey = &decrypted
+	}
+	return
+}
+
 // ActionDefinition is a reusable API template
 type ActionDefinition struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
@@ -160,6 +184,8 @@ type ProcessedEvent struct {
 	CreatedAt       time.Time `json:"created_at"`
 	TenantID        uint      `gorm:"index" json:"tenant_id"`
 	AuthMindIssueID string    `gorm:"index" json:"authmind_issue_id"`
+	Status          string    `json:"status"` // "triggered", "filtered_severity", "filtered_type", "no_workflow"
+	Risk            string    `json:"risk"`   // "Critical", "High", "Medium", "Low", "None"
 }
 
 // StateStore replaces 'latest_issue_ids.json'
