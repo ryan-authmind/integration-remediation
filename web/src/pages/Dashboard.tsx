@@ -324,11 +324,6 @@ export default function Dashboard() {
     ? stats.tenant_breakdown.map(t => ({ name: t.tenant_name || `ID:${t.tenant_id}`, executions: t.job_count, events: t.event_count }))
     : [];
 
-  const statusData = [
-      { name: 'Success', value: stats.success_jobs, color: '#00D1B2' }, 
-      { name: 'Failed', value: stats.failed_jobs, color: '#FF4C4C' },   
-  ];
-
   const eventBreakdownData = stats.event_breakdown 
     ? Object.entries(stats.event_breakdown).map(([status, count]) => {
         let name = status;
