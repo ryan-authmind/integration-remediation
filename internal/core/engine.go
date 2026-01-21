@@ -307,6 +307,7 @@ func (e *Engine) pollAuthMind(task PollingTask) {
                 TenantID:        task.TenantID,
                 AuthMindIssueID: issueIDStr,
                 Status:          eventStatus,
+                Risk:            issue.Risk,
             })
 
     		state.Value = issueIDStr

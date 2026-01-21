@@ -438,7 +438,7 @@ func GetDashboardStats(c *gin.Context) {
 		ActiveWorkflows int64            `json:"active_workflows"`
         ProcessedEvents int64            `json:"processed_events"`
 		WorkflowBreakdown map[string]int64 `json:"workflow_breakdown"`
-        EventBreakdown    map[string]int64 `json:"event_breakdown"`
+        EventBreakdown    []map[string]interface{} `json:"event_breakdown"`
 	}
 
     tenantID := tenancy.ResolveTenantID(c)
@@ -450,7 +450,7 @@ func GetDashboardStats(c *gin.Context) {
 	database.DB.Model(&database.Workflow{}).Where("tenant_id = ? AND enabled = ?", tenantID, true).Count(&stats.ActiveWorkflows)
     database.DB.Model(&database.ProcessedEvent{}).Where("tenant_id = ?", tenantID).Count(&stats.ProcessedEvents)
 
-    // Calculate breakdown
+    // Calculate workflow breakdown
     var results []struct {
         Name  string
         Count int64
@@ -467,21 +467,14 @@ func GetDashboardStats(c *gin.Context) {
         stats.WorkflowBreakdown[r.Name] = r.Count
     }
 
-    // Calculate event breakdown
-    var eventResults []struct {
-        Status string
-        Count  int64
-    }
+    // Calculate detailed event breakdown by Risk and Status
     database.DB.Model(&database.ProcessedEvent{}).
-        Select("status, count(*) as count").
+        Select("risk, " +
+            "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
+            "SUM(CASE WHEN status != 'triggered' THEN 1 ELSE 0 END) as filtered").
         Where("tenant_id = ?", tenantID).
-        Group("status").
-        Scan(&eventResults)
-    
-    stats.EventBreakdown = make(map[string]int64)
-    for _, r := range eventResults {
-        stats.EventBreakdown[r.Status] = r.Count
-    }
+        Group("risk").
+        Scan(&stats.EventBreakdown)
 
 	c.JSON(http.StatusOK, stats)
 }
@@ -716,7 +709,7 @@ func GetAggregateStats(c *gin.Context) {
 		TotalTenants    int64            `json:"total_tenants"`
 		ActiveWorkflows int64            `json:"active_workflows"`
         ProcessedEvents int64            `json:"processed_events"`
-        EventBreakdown    map[string]int64 `json:"event_breakdown"`
+        EventBreakdown    []map[string]interface{} `json:"event_breakdown"`
 		TenantBreakdown []map[string]interface{} `json:"tenant_breakdown"`
 	}
 
@@ -728,20 +721,13 @@ func GetAggregateStats(c *gin.Context) {
 	database.DB.Model(&database.Workflow{}).Where("enabled = ?", true).Count(&stats.ActiveWorkflows)
     database.DB.Model(&database.ProcessedEvent{}).Count(&stats.ProcessedEvents)
 
-    // Calculate global event breakdown
-    var eventResults []struct {
-        Status string
-        Count  int64
-    }
+    // Calculate global event breakdown by Risk and Status
     database.DB.Model(&database.ProcessedEvent{}).
-        Select("status, count(*) as count").
-        Group("status").
-        Scan(&eventResults)
-    
-    stats.EventBreakdown = make(map[string]int64)
-    for _, r := range eventResults {
-        stats.EventBreakdown[r.Status] = r.Count
-    }
+        Select("risk, " +
+            "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
+            "SUM(CASE WHEN status != 'triggered' THEN 1 ELSE 0 END) as filtered").
+        Group("risk").
+        Scan(&stats.EventBreakdown)
 
 	// Calculate breakdown per tenant
 	database.DB.Table("tenants").

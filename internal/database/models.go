@@ -185,6 +185,7 @@ type ProcessedEvent struct {
 	TenantID        uint      `gorm:"index" json:"tenant_id"`
 	AuthMindIssueID string    `gorm:"index" json:"authmind_issue_id"`
 	Status          string    `json:"status"` // "triggered", "filtered_severity", "filtered_type", "no_workflow"
+	Risk            string    `json:"risk"`   // "Critical", "High", "Medium", "Low", "None"
 }
 
 // StateStore replaces 'latest_issue_ids.json'
