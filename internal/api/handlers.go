@@ -471,7 +471,9 @@ func GetDashboardStats(c *gin.Context) {
     database.DB.Model(&database.ProcessedEvent{}).
         Select("risk, " +
             "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
-            "SUM(CASE WHEN status != 'triggered' THEN 1 ELSE 0 END) as filtered").
+            "SUM(CASE WHEN status = 'filtered_severity' THEN 1 ELSE 0 END) as filtered_severity, " +
+            "SUM(CASE WHEN status = 'filtered_type' THEN 1 ELSE 0 END) as filtered_type, " +
+            "SUM(CASE WHEN status = 'no_workflow' THEN 1 ELSE 0 END) as no_workflow").
         Where("tenant_id = ?", tenantID).
         Group("risk").
         Scan(&stats.EventBreakdown)
@@ -725,7 +727,9 @@ func GetAggregateStats(c *gin.Context) {
     database.DB.Model(&database.ProcessedEvent{}).
         Select("risk, " +
             "SUM(CASE WHEN status = 'triggered' THEN 1 ELSE 0 END) as triggered, " +
-            "SUM(CASE WHEN status != 'triggered' THEN 1 ELSE 0 END) as filtered").
+            "SUM(CASE WHEN status = 'filtered_severity' THEN 1 ELSE 0 END) as filtered_severity, " +
+            "SUM(CASE WHEN status = 'filtered_type' THEN 1 ELSE 0 END) as filtered_type, " +
+            "SUM(CASE WHEN status = 'no_workflow' THEN 1 ELSE 0 END) as no_workflow").
         Group("risk").
         Scan(&stats.EventBreakdown)
 

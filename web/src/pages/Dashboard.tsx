@@ -62,7 +62,7 @@ interface Stats {
     total_tenants?: number;
     workflow_breakdown?: Record<string, number>;
     tenant_breakdown?: Array<{tenant_name: string, job_count: number, event_count: number, tenant_id: number}>;
-    event_breakdown?: Array<{risk: string, triggered: number, filtered: number}>;
+    event_breakdown?: Array<{risk: string, triggered: number, filtered_severity: number, filtered_type: number, no_workflow: number}>;
 }
 
 interface Tenant {
@@ -325,8 +325,10 @@ export default function Dashboard() {
     ? stats.event_breakdown.map(item => ({
         name: item.risk || 'Unknown',
         triggered: item.triggered,
-        filtered: item.filtered,
-        total: item.triggered + item.filtered
+        filtered_severity: item.filtered_severity,
+        filtered_type: item.filtered_type,
+        no_workflow: item.no_workflow,
+        total: item.triggered + item.filtered_severity + item.filtered_type + item.no_workflow
     })).sort((a, b) => {
         const order = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'None': 4 };
         return (order[a.name as keyof typeof order] ?? 99) - (order[b.name as keyof typeof order] ?? 99);
@@ -424,7 +426,7 @@ export default function Dashboard() {
               <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
                   <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Event Risk Distribution</Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-                      Breakdown of all processed events by Risk and whether they triggered a workflow.
+                      Breakdown of all processed events by Risk and processing outcome.
                   </Typography>
                   <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                     <ResponsiveContainer width="100%" height={250}>
@@ -433,19 +435,23 @@ export default function Dashboard() {
                             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                             <YAxis tick={{ fontSize: 11 }} />
                             <RechartsTooltip />
-                            <Legend wrapperStyle={{ fontSize: '12px' }} />
-                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#00D1B2" radius={[0, 0, 0, 0]} />
-                            <Bar dataKey="filtered" name="Filtered" stackId="a" fill="#FFBB28" radius={[4, 4, 0, 0]} />
+                            <Legend wrapperStyle={{ fontSize: '10px' }} />
+                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#00D1B2" />
+                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#FFBB28" />
+                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#FF8042" />
+                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#AAAAAA" />
                         </BarChart>
                     </ResponsiveContainer>
                   </Box>
                   <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {eventBreakdownData.map((d) => (
                           <Box key={d.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>{d.name}</Typography>
-                              <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'success.light', color: 'success.contrastText' }} />
-                                  <Chip label={`${d.filtered} Skipped`} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'warning.light', color: 'warning.contrastText' }} />
+                              <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 60 }}>{d.name}</Typography>
+                              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#00D1B2', color: 'white' }} />}
+                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FFBB28', color: 'white' }} />}
+                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FF8042', color: 'white' }} />}
+                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#AAAAAA', color: 'white' }} />}
                               </Box>
                           </Box>
                       ))}
