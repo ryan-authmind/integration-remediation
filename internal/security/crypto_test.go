@@ -1,6 +1,11 @@
 package security
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
+	"io"
 	"os"
 	"strings"
 	"testing"
