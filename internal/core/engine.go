@@ -436,7 +436,7 @@ func (e *Engine) pollAuthMind(task PollingTask) {
         // Always log success for visibility, but redact response
         logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
         if len(resp) > 0 {
-            redactedResp := e.redactSecrets(string(resp))
+            redactedResp := security.Redact(string(resp))
             if e.DebugMode {
                 var pretty bytes.Buffer
                 if err := json.Indent(&pretty, []byte(redactedResp), "", "  "); err == nil {
