@@ -31,7 +31,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
-import Editor from '@monaco-editor/react';
+import Editor, { useMonaco } from '@monaco-editor/react';
 import { useTenant } from '../context/TenantContext';
 
 interface ActionDefinition {
@@ -70,6 +70,10 @@ const TEMPLATE_VARIABLES = [
     { label: '.Title', detail: 'Localized Title', documentation: 'Title from the localized Message Template.' },
     { label: '.Message', detail: 'Localized Message', documentation: 'Body from the localized Message Template.' },
     { label: '.Footer', detail: 'Localized Footer', documentation: 'Footer from the localized Message Template.' },
+    { label: '.RemediationTitle', detail: 'Remediation Title', documentation: 'Title of the recommended remediation.' },
+    { label: '.RemediationDescription', detail: 'Remediation Desc', documentation: 'High-level description of the remediation.' },
+    { label: '.RemediationSteps', detail: 'Remediation Steps', documentation: 'Markdown-formatted steps for remediation.' },
+    { label: '.RemediationURL', detail: 'Remediation URL', documentation: 'Link to official AuthMind remediation documentation.' },
     { label: '| default', detail: 'Fallback Helper', documentation: 'Usage: {{.Variable | default "my fallback"}}. Useful for missing Detail fields.' },
     { label: '| jsonescape', detail: 'JSON Safety Helper', documentation: 'Usage: {{.Variable | jsonescape}}. Essential for strings inside JSON payloads to handle quotes and newlines.' },
 ];
@@ -98,14 +102,18 @@ export default function ActionTemplates() {
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState('');
 
+  const monaco = useMonaco();
+
   useEffect(() => {
     fetchActions();
     fetchIntegrations();
   }, [selectedTenant]);
 
-  // Configure Monaco Autocomplete
-  const handleEditorWillMount = (monaco: any) => {
-    monaco.languages.registerCompletionItemProvider('json', {
+  // Configure Monaco Autocomplete - Runs once per monaco instance
+  useEffect(() => {
+    if (!monaco) return;
+
+    const provider = monaco.languages.registerCompletionItemProvider('json', {
       triggerCharacters: ['{', '.'],
       provideCompletionItems: (model: any, position: any) => {
         const lineContent = model.getLineContent(position.lineNumber);
@@ -142,7 +150,9 @@ export default function ActionTemplates() {
         };
       },
     });
-  };
+
+    return () => provider.dispose();
+  }, [monaco]);
 
   const fetchActions = async () => {
     try {
@@ -356,7 +366,6 @@ export default function ActionTemplates() {
                                 defaultLanguage="json"
                                 theme="vs-dark"
                                 value={newAction.body_template}
-                                beforeMount={handleEditorWillMount}
                                 onChange={(value) => setNewAction({ ...newAction, body_template: value || '{}' })}
                                 options={{
                                     minimap: { enabled: false },
@@ -431,7 +440,6 @@ export default function ActionTemplates() {
                     defaultLanguage="json"
                     theme="vs-dark"
                     value={formData?.body_template}
-                    beforeMount={handleEditorWillMount}
                     onChange={(value) => setFormData(prev => prev ? { ...prev, body_template: value || '' } : null)}
                     options={{
                         minimap: { enabled: false },
@@ -471,6 +479,7 @@ export default function ActionTemplates() {
           <Button onClick={handleSave} variant="contained" size="large">Save Changes</Button>
         </DialogActions>
       </Dialog>
+
 
       <Dialog open={docOpen} onClose={() => setDocOpen(false)} maxWidth="md" fullWidth>
           <DialogTitle sx={{ fontWeight: 700 }}>AuthMind Template Documentation</DialogTitle>
