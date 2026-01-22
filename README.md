@@ -37,7 +37,7 @@ The integrated React dashboard provides full control over the remediation engine
 
 *   **Dashboard:** Real-time monitoring of job success rates, active workers, and recent remediation events.
 *   **Workflow Editor:** A visual builder for creating multi-step remediation sequences with severity-based triggers.
-*   **Integration Manager:** Configure and test connections to AuthMind, Slack, ServiceNow, and custom REST APIs.
+*   **Integration Manager:** Configure and test connections to AuthMind, Slack, ServiceNow, and custom REST APIs. (See **[Setup Requirements](./docs/INTEGRATIONS.md)**)
 *   **Action Templates:** Define reusable API payloads with dynamic variable interpolation. (See **[Template Variables](./docs/REMEDIATION_TEMPLATES.md)**)
 *   **Tenant Management:** (Multi-tenant mode only) Manage customer environments, API keys, and isolated configurations.
 
