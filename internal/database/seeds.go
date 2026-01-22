@@ -84,7 +84,16 @@ func SeedDatabase(db *gorm.DB, seedDir string) {
 		log.Printf("[Seed] Synced message templates.")
 	}
 
-    // 7. Special Case: Seed Default Steps for core workflows if they don't exist
+	// 7. Load and seed Remediation Recommendations
+	var remediations []RemediationRecommendation
+	if err := loadSeedFile(seedDir, "remediations.json", &remediations); err == nil {
+		for _, r := range remediations {
+			db.Where(RemediationRecommendation{IssueType: r.IssueType}).FirstOrCreate(&r)
+		}
+		log.Printf("[Seed] Synced remediation recommendations.")
+	}
+
+    // 8. Special Case: Seed Default Steps for core workflows if they don't exist
     seedDefaultWorkflowSteps(db)
 
 	log.Println("[Seed] Database sync complete.")

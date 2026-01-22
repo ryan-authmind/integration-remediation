@@ -1,0 +1,408 @@
+[
+  {
+    "issue_type": "Lack of MFA",
+    "title": "Remediation for Lack of MFA",
+    "description": "Lack of MFA means AuthMind has detected that Multi-Factor Authentication (MFA) has not been applied as a \u201cstrong authentication\u201d control for specified identities. MFA combines 2 or more security mechanisms (e.g., something you know, something you are, something you have) to authorize identities.\n\n**Importance:** Strong passwords alone are no longer robust enough. A second layer (MFA) provides defense in-depth. According to Microsoft, MFA can prevent 99.9% of attacks on accounts. Organizations should eliminate SMS as it is the weakest method and migrate toward OTP, private keys, or biometrics.",
+    "steps": "- Utilize and view the AuthMind Dashboard \u201cLack of MFA\u201d.\n- Assess and baseline identities that do not have MFA against those that do.\n- Evaluate end user experience relative to current MFA methods and resources accessed.\n- Observe current MFA methods for all identity types (users, admins, service accounts, machines, APIs).\n- Review current security policies and consider migrating away from SMS to stronger methods like OTP or Password-less.\n- For Azure AD users, consider implementing Microsoft Conditional Access Policies (CAP) for \u201cknown, onboarded users\u201d and \u201cAdmins\u201d.\n- For Azure AD and Intune MDM, review device compliance settings to manage re-authentication prompts.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-lack-of-mfa"
+  },
+  {
+    "issue_type": "Password Hash Length",
+    "title": "Remediation for Password Hash Length",
+    "description": "A hash is a small set of data mathematically tied to larger data sets (like passwords). In Windows networking (Active Directory), passwords are often stored as LAN Manager (LM) or NT one-way functions.\n\n**Importance:** Storing passwords safely prevents attackers from obtaining them even if the database is compromised. Authentication quality is considered poor if the password hash length is less than 41 hex characters. Legacy hashes like LM, CRC32, MD5, and SHA1 are considered insecure.",
+    "steps": "- Enable SHA256 or another modern secure hash method on servers and services.\n- Use modern hashing algorithms that automatically salt passwords, such as Argon2id, bcrypt, and PBKDF2.\n- Add a 'pepper' to passwords for an extra layer of security, stored in a secrets vault or HSM.\n- Upgrade legacy hashes (MD5, SHA-1) to modern algorithms (Argon2, scrypt, bcrypt) and re-hash upon next user login.\n- Seek a balance between security and performance when choosing a 'work factor' (number of iterations).\n- Expire and delete password hashes for users who have been inactive for a long time.\n- Use a hashing library that is compatible with Unicode.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-password-hash-length"
+  },
+  {
+    "issue_type": "Password Salt",
+    "title": "Remediation for Password Salt",
+    "description": "A salt length is a unique, randomly generated string that is added to each password as part of the hashing process.\n\n**Importance:** Salting a hash largely mitigates password attacks like rainbow tables by forcing uniqueness and complexity. Authentication quality is considered poor if the password salt length is less than 33 bits.",
+    "steps": "- Configure the IDP to block unsalted password hashing.\n- Configure the IDP to utilize a minimum of 33 bits in salts.\n- Create cryptographically strong random data to use as salts.\n- Implement credential-specific salts (per user) as per OWASP guidelines.\n- Use a cryptographically secure pseudorandom number generator (CSPRNG).\n- As storage permits, use a 32-byte or 64-byte salt.\n- Rely on algorithms such as bcrypt that hash and salt the password using strong cryptography.\n- Configure Active Directory to disallow usage of NTLM and RC4 failback.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-password-salt"
+  },
+  {
+    "issue_type": "Improving Auth Hash Security",
+    "title": "Remediation by Improving Auth Hash Security",
+    "description": "This guide outlines best practices for implementing better Auth Hash Quality to remediate security issues caused by weak password hashes. It focuses on implementing public key infrastructure (PKI) and migrating from weak hashes (like MD4, MD5) to stronger, recommended hashes.\n\n**Importance:** Weak password hashes increase the risk of credential compromise. Migrating to stronger hashes is essential, but risks and impacts must be evaluated prior to migration.",
+    "steps": "- Create and adopt a migration strategy to stronger hashes.\n- Evaluate risks and risk impacts prior to migration.\n- For Microsoft Active Directory and SHA-1 issues, review specific Microsoft documentation before migrating to SHA-2 (256).\n- Review 'KB5003341: Issues you might encounter when SHA-1 Trusted Root Certificate Authority expires'.\n- Review '2019 SHA-2 Code Signing Support requirement for Windows and WSUS'.\n- Review 'Migrating a Certification Authority Key from a Cryptographic Service Provider (CSP) to a Key Storage Provider (KSP)'.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-by-improving-auth-hash-quality"
+  },
+  {
+    "issue_type": "SHA-1 Related Issues",
+    "title": "Remediation for SHA-1 Related Issues",
+    "description": "The SHA-1 hash algorithm is no longer secure. Weaknesses in SHA-1 significantly increase the likelihood of allowing an attacker to spoof content, execute phishing attacks, or perform man-in-the-middle attacks.\n\n**Importance:** Continued use of SHA-1 exposes the organization to significant security risks including spoofing and MITM attacks.",
+    "steps": "- Check environment for SHA2-256 certificate support.\n- Run a discovery/scan on SHA-1 certificates.\n- Generate new Certificate Signing Requests (CSRs) for each SHA-1 certificate.\n- Replace SHA-1 certificates with SHA2-256 certificates.\n- Install new SHA2-256 certificates.\n- Test the newly installed certificates.\n- Ensure these steps are part of the PKI environment (Root CA and Sub CAs).",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-sha-1-related-issues"
+  },
+  {
+    "issue_type": "SHA-224 Related Issues",
+    "title": "Remediation for SHA-224 Related Issues",
+    "description": "Although not as vulnerable and exploitable as SHA-1, SHA-224 is still considered weak compared to SHA2-256 since it only provides a one-way hash function.\n\n**Importance:** Organizations should evaluate their use of SHA-224 and migrate to SHA2-256 to ensure stronger cryptographic security.",
+    "steps": "- Check environment for SHA2-256 Certificate Support.\n- Run a discovery/scan on all SHA-224 certificates.\n- Generate new Certificate Signing Requests (CSRs) for each SHA-224 certificate.\n- Replace SHA-224 certificates with SHA2-256 certificates.\n- Install new SHA2-256 certificates.\n- Test newly installed certificates.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-sha-224-related-issues"
+  },
+  {
+    "issue_type": "MD4 Related Issues",
+    "title": "Remediation for MD4 Related Issues",
+    "description": "The IETF moved MD4 to historic status in March 2011. Continuous use of MD4 significantly increases the likelihood of sensitive data exposure, key leakage, broken authentication, and spoofing attacks.",
+    "steps": "- Migrate from MD4 to SHA2-256.\n- Assess current MD4 environment and use cases/usability.\n- Use Confidentiality, Integrity, and Availability (CIA) principles to identify weak encryption or hashing uses.\n- Review current password management/vault systems and evaluate the impact on users, applications, and resources.\n- For asymmetric encryption, use Elliptic Curve Cryptography (ECC) with a secure curve like Curve25519 (preferred).\n- If ECC cannot be used, use RSA encryption with a minimum 2048-bit key (4096-bit recommended).\n- When using PBKDF2, ensure the iteration parameter is over 10,000. Note that MD4 is forbidden for use with PBKDF2.\n- Apply SHA256 to MD4 passwords and convert stored passwords based on risk prioritization.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-md4-related-issues"
+  },
+  {
+    "issue_type": "MD5 Related Issues",
+    "title": "Remediation for MD5 Related Issues",
+    "description": "Continuous use of MD5 significantly increases the likelihood of sensitive data exposure, key leakage, broken authentication, insecure session, and spoofing attacks. MD5 has been deprecated by NIST and is susceptible to collision attacks.\n\n**Importance:** MD5 is no longer considered secure for digital signatures or password hashing due to collision vulnerabilities. Migrating to SHA2-256 is critical.",
+    "steps": "- Migrate from MD5 to SHA2-256.\n- Assess current MD5 environment and use cases/usability.\n- Use Confidentiality, Integrity, and Availability (CIA) principles to identify weak encryption or hashing uses.\n- Review current password management/vault systems and evaluate impact.\n- For asymmetric encryption, use Elliptic Curve Cryptography (ECC) with a secure curve like Curve25519 (preferred).\n- If ECC cannot be used, use RSA encryption with a minimum 2048-bit key (4096-bit recommended).\n- When using PBKDF2, ensure the iteration parameter is over 10,000. Do not use MD5 with PBKDF2.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-md5-related-issues"
+  },
+  {
+    "issue_type": "RC2 and RC4 Related Issues",
+    "title": "Remediation for RC2 and RC4 Related Issues",
+    "description": "RC2 is a 64-bit block cipher. RC4 is a stream cipher widely used in SSL/TLS. Neither is considered secure. RC4 vulnerabilities can allow remote attackers to expose account credentials (credit card data, PII) without an active man-in-the-middle session.",
+    "steps": "- Migrate from RC2/RC4 to RC6 or AES-256.\n- Assess RC2 and RC4 use cases and prioritize risks.\n- Choose the proper mode of operation, use authentication, and use a secure Key Derivation Function (KDF).\n- Utilize tools requiring human analysis, such as penetration testing and threat modeling.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-rc2-and-rc4-related-issues"
+  },
+  {
+    "issue_type": "Assets with No MFA Configured",
+    "title": "Remediation for Assets with No MFA Configured",
+    "description": "An 'Asset with No MFA' is any resource (app, service, etc.) where identities managed by a known Identity Provider (IdP) authenticate without using Multi-Factor Authentication (MFA).\n\n**Importance:** Strong passwords alone are no longer robust enough. A second factor provides defense-in-depth, contributing to 'Strong Authentication' and helping mitigate financial, legal, operational, and reputation risks.",
+    "steps": "- Utilize and view the AuthMind Dashboard widget 'Asset No MFA'.\n- Assess and baseline the concerned asset and the authenticating identities.\n- Evaluate end-user experience relative to current MFA methods.\n- Observe current MFA methods for all identity types (users, admins, service accounts, machines, APIs).\n- Review and revise MFA security policies. Move away from SMS (weakest) toward TOTP, Private Keys, or Password-less.\n- For Microsoft Entra ID (Azure AD), implement Conditional Access Policies (CAP) for 'known, onboarded users' and 'Admins'.\n- For Entra ID and Intune, review device compliance settings.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-assets-with-no-mfa-draft"
+  },
+  {
+    "issue_type": "Exposed Assets",
+    "title": "Remediation for Exposed Assets",
+    "description": "An 'Exposed Asset' is any internal asset (application, server, workstation, directory, API, user, machine, software) that can be accessed from a public IP outside the network.\n\n**Importance:** Failure to maintain proper inventory and management of exposed assets increases the probability of exposing critical assets to vulnerabilities and increases the likelihood of losing critical data.",
+    "steps": "- Utilize and review the AuthMind Dashboard and Report on 'Exposed Assets'.\n- Baseline and assess current assets against the reported exposed assets.\n- Establish metrics for measuring and defining critical assets, including exposed ones.\n- Use the CIS 'Critical Control 1: Inventory and Control of Critical Assets' as a starting point.\n- Update the Risk Register regarding likelihood, tolerance, and financial impact.\n- Map exposed assets to business processes/applications and determine associated risks.\n- Update asset management policies, processes, and configurations.\n- Ensure relevant security controls are in place (IP/DNS Management, Firewalls/WAFs, etc.).",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-exposed-assets"
+  },
+  {
+    "issue_type": "Shadow Access",
+    "title": "Remediation for Shadow Access",
+    "description": "Shadow Access refers to known identities (e.g., users) in the enterprise that are not authenticating with the Directory or IdP. This includes local accounts for unregistered demo accounts, 'leavers', and 'movers' with outdated privileges.\n\n**Importance:** Users that cannot be correlated to a directory or service account pose significant risks. Former account owners or attackers could gain access to private information and resources.",
+    "steps": "- Assess current Access Management Security Policies.\n- Conduct a Baseline Audit of All Identities by reviewing the inventory of Users and Devices.\n- Assess the Business Purpose/Function of users relative to accessing Corporate Birthright, Department Specific, and Role-Based Applications.\n- Run a Privileged Access Baseline Analysis to identify Privileged Users and map/correlate roles.\n- De-provision unused identities and accounts.\n- Right-size privileges by revoking and granting privileged access where applicable.\n- Fine-tune Access Management Security Policies.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-shadow-access"
+  },
+  {
+    "issue_type": "Shadow Assets",
+    "title": "Remediation for Shadow Assets",
+    "description": "A Shadow Asset issue occurs when an asset (server, application, printer, laptop, etc.) exists in the enterprise but is not accounted for or inventoried in the Directory or Management system.\n\n**Importance:** Asset Management is a critical control for reducing data leakage and breach risks. Unregistered assets can be exploited via unused ports and lack current patches or policy configurations.",
+    "steps": "- Conduct a baseline audit and inventory of all assets in the centralized repository or CMDB.\n- Review and compare the inventory against the AuthMind 'Shadow Asset' Report.\n- Rank and tier assets relative to value, business function, and workflow; input this into the Risk Register.\n- For valid assets, 'white list' them in AuthMind by creating and tracking an exception.\n- Set up automated workflows from AuthMind for Moves, Adds, and Changes to ticketing systems.\n- Evaluate the Asset, Incident, and Vulnerability Management strategy.\n- Fine-tune Asset Management Policies.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-shadow-asset"
+  },
+  {
+    "issue_type": "Shadow Identity Systems",
+    "title": "Remediation for Shadow Identity Systems",
+    "description": "A 'Shadow Identity System' is an identity system not managed by the organization\u2019s IT Admins. AuthMind detects these based on protocols in use, excluding those marked as 'Known Identity Systems'.\n\n**Importance:** Shadow identity systems are unauthorized and unmonitored, granting access without oversight. They expose the enterprise to risks such as third-party exposure, policy circumvention, and outdated software vulnerabilities.",
+    "steps": "- For Known Systems: Add the system to 'Known Identity Systems' in the AuthMind Admin panel to whitelist it.\n- For Unknown Systems: Investigate using the AuthMind console to identify authenticating identities and communicating assets.\n- Determine if the system should be formally managed and integrated or decommissioned.\n- If decommissioning, reconfigure dependent assets and applications to use an authorized identity system.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-shadow-directory"
+  },
+  {
+    "issue_type": "Suspicious Inbound Access",
+    "title": "Remediation for Suspicious Inbound Access",
+    "description": "Suspicious inbound access refers to unknown identities with a bad reputation IP that originate from countries (geo-locations) known for suspicious activity and cyber-attacks.\n\n**Importance:** Identities that cannot be accounted for or correlated to directory/service accounts raise the probability of illegitimate access and create an attack surface for unauthorized access to sensitive data.",
+    "steps": "- Assess and map current security controls to mission-critical business applications and assets.\n- Assess current Access Management Security Policies.\n- Assess and benchmark-baseline Network and Information Security Controls (WAF, Firewalls, Vulnerability Scanning, SASE, Data Risk Management).\n- Review and compare findings to AuthMind\u2019s 'Suspicious Inbound' Report.\n- If gaps exist, map out a security control matrix aligned with lines of business and the risk register.\n- Assess and update configurations on all security controls to normalize protection for inbound access.\n- De-provision unused identities.\n- Fine-tune Access Governance Policies for Inbound Access (3rd Party B2B, Remote Access, BYOD, Permit/Deny Lists).",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspicious-inbound-access"
+  },
+  {
+    "issue_type": "Suspicious Outbound Access",
+    "title": "Remediation for Suspicious Outbound Access",
+    "description": "Suspicious outbound access involves unknown IP addresses not associated with internal corporate users, service accounts, or applications communicating with external web apps, SaaS apps, or 3rd party applications.\n\n**Importance:** Proper access management reduces the risk of data leakage and breaches. Establishing a lifecycle for access management improves visibility and reduces Mean Time To Remediation.",
+    "steps": "- Assess and map current security controls to mission-critical business applications and assets.\n- Conduct a baseline audit and inventory of internal-corporate uses.\n- Assess and benchmark current security controls (IP/DNS Management, Network Management, WAF, Firewalls, Vulnerability Management, SASE, Data Risk Management).\n- Review and compare findings to AuthMind\u2019s 'Suspicious Outbound' Report.\n- Update and normalize configurations on security controls that permit outbound access.\n- For SaaS Apps, utilize and baseline findings relative to risky apps and users.\n- De-provision and offboard unused identities.\n- Fine-tune Access Governance Policies for outbound access.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspicious-outbound-access"
+  },
+  {
+    "issue_type": "Unknown SaaS Access",
+    "title": "Remediation for Unknown SaaS Access",
+    "description": "Unknown SaaS Access refers to the use of software-as-a-service applications that have not been registered or sanctioned by the corporate IT or Finance departments (Shadow IT).\n\n**Importance:** Unsanctioned applications typically lack standard security controls such as SSO, MFA, Privileged Access Management, and data encryption, creating blind spots for attacks and data leakage.",
+    "steps": "- Review AuthMind\u2019s Dashboard \u201cDiscovery of Unknown SaaS\u201d.\n- Assess and baseline unknown SaaS against corporate sanctioned SaaS apps.\n- Review and fine-tune security policies for registering, downloading, and using SaaS applications.\n- Assess and benchmark Security Controls (SSO, MFA, PAM, Data Security, CASB, SASE).\n- If gaps exist, map out a security control matrix aligned with business lines.\n- Assess and update configurations on all security controls.\n- De-provision unused identities and unused, dormant, or unnecessary SaaS applications.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unknown-saas-access"
+  },
+  {
+    "issue_type": "Access from Unauthorized Country",
+    "title": "Remediation for Access from Unauthorized Country",
+    "description": "Access from an unauthorized country occurs when an identity (user or service account) communicates with a country that is blacklisted or not on the organization's whitelist.\n\n**Importance:** Countries on blacklists are often known safe havens for bad actors. Deviations from the approved country list can indicate malicious activity, malware infection, or ransomware attacks.",
+    "steps": "- Verify IP ranges and ports for whitelisted countries are updated in enforcement tools (e.g., firewall, endpoint protection, DLP, SASE).\n- Verify IP ranges for blacklisted countries are updated in enforcement tools.\n- Monitor SaaS application access for unauthorized apps that could communicate with blacklisted countries.\n- Block incoming authentication attempts from unauthorized countries to cloud Identity Providers (IDPs).\n- Verify all user access is using MFA, and block MFA requests from unauthorized countries.\n- Monitor and verify public cloud tenant configuration and usage is compliant with organization policy.\n- Monitor and verify that access to exposed assets is blocked from unauthorized countries.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-access-from-unauthorized-country"
+  },
+  {
+    "issue_type": "Access to Unauthorized Country",
+    "title": "Remediation for Access to Unauthorized Country",
+    "description": "Access to an unauthorized country occurs when an identity (a user or a service account) communicates with a country that is blacklisted or a country that is not on the organization whitelist.\n\n**Importance:** Countries on blacklists are known safe havens for bad actors. Deviating from the approved country list can indicate malicious activity, potentially leading to malware infection, sensitive data loss, or ransomware attacks.",
+    "steps": "- Verify IP ranges and ports for whitelisted countries are updated in the organization\u2019s enforcement tools.\n- Verify IP ranges for the blacklisted countries are updated in the organization\u2019s enforcement tools.\n- Monitor SaaS application access for unauthorized apps that could potentially lead to communication with blacklisted countries.\n- Monitor and verify public cloud tenant configuration and usage is compliant with the organization\u2019s policy.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-access-to-unauthorized-country"
+  },
+  {
+    "issue_type": "Access Using Public VPN",
+    "title": "Remediation for Access Using Public VPN",
+    "description": "Public VPNs are VPN services available to the general public, allowing users to access websites or services that might otherwise be unavailable in their country or through their service provider.\n\n**Importance:** Using a public VPN replaces the user's IP address, potentially allowing bad actors to hide their origin and identity. For employees, using a public VPN can indicate malicious intent to conceal their location.",
+    "steps": "- Block access to the organization\u2019s resources to connections coming from known IP ranges of providers of public VPN services.\n- Monitor the use of VPN applications on the end user\u2019s assets.\n- Configure the organization\u2019s end point protection tools to prohibit the use of VPN clients not approved by the organization\u2019s IT department.\n- Enforce MFA authentication for all users, and block MFA requests from known public VPN services IP ranges.\n- Block access to the organization cloud IDP from known public VPN services IP ranges.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-access-using-public-ip"
+  },
+  {
+    "issue_type": "Access Using Anonymous IP",
+    "title": "Remediation for Access Using Anonymous IP",
+    "description": "Access Using Anonymous IP occurs when an end-user or service uses tools (e.g., proxies, routing tools) to hide their original IP address while using the Internet.\n\n**Importance:** Using an anonymous IP allows bad actors to gain access to unauthorized resources and initiate attacks while concealing their origin and identity.",
+    "steps": "- Review and create access policies related to access to resources from proxy servers.\n- Use web application firewalls (WAF) in combination with threat feeds to identify traffic coming from known TORs and/or proxy servers.\n- Monitor connections to/from users and/or services to known malicious IPs.\n- Deploy end-point protection tools to monitor end-user behaviors and enforce security policies.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-access-using-anonymous-ip-wip"
+  },
+  {
+    "issue_type": "Unauthorized Asset Access",
+    "title": "Remediation for Unauthorized Asset Access",
+    "description": "Unauthorized Asset Access happens when an asset is accessed outside the allowed (or expected) operations window, by unauthorized users, machines, or services. This includes access via prohibited ports, unsafe protocols, or outside permitted time slots.\n\n**Importance:** Unauthorized Asset Access could potentially lead to attempts to gain access to the organization\u2019s resources and data by bad actors, leading to financial and/or reputation damage.",
+    "steps": "- Continuously review access policies to critical infrastructure in the organization (e.g., domain controllers, billing systems, databases).\n- Review user/services permissions to make sure the organization is following the \u201cprinciple of least privilege\u201d.\n- Monitor abnormal behaviors by users and or services (e.g. access times, origin location, access attempt frequency).\n- Limit and monitor the use of \u201clocal accounts\u201d with administrative privileges.\n- Make sure that access to all resources (when possible) is managed by a directory services or cloud IdP.\n- Monitor end-user of usage of SaaS applications not approved by the organization.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unauthorized-asset-access"
+  },
+  {
+    "issue_type": "Unusual User Access",
+    "title": "Remediation for Unusual User Access",
+    "description": "Unusual User Access refers to behavior or actions by a user that differ from their established or expected patterns. These deviations can indicate potential security incidents, such as compromised credentials or insider threats.\n\n**Importance:** Monitoring deviations in parameters like geolocation, IP, device, OS, and time of access is critical for maintaining robust security.",
+    "steps": "- Verify the IP, hostname, ISP, geo-location, and other source details to confirm approved VPNs or proxies were not involved.\n- If the source is valid, add these systems to the 'Known' pages in the Admin section.\n- Verify the history of the identity\u2019s accesses around the time of the incident.\n- Consult the account owner to validate if the flagged access was authorized.\n- Block accesses from undesired locations, IP ranges, or ISPs.\n- Enable relevant authentication and access policies in the IdP (e.g., Azure AD Conditional Access).\n- Ensure all user access uses MFA and block MFA requests from unauthorized locations.\n- Adjust playbook sensitivity for false positives.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unusual-user-access"
+  },
+  {
+    "issue_type": "Impossible Travel",
+    "title": "Remediation for Impossible Travel",
+    "description": "Impossible travel occurs when an identity (user or service account) performs two consecutive accesses from locations that are too far apart to be physically traveled in the elapsed time.\n\n**Importance:** Impossible travel often indicates an identity is being targeted or breached by an attacker, or signals the theft/sharing of credentials.",
+    "steps": "- Verify the IP, hostname, ISP, and geo-location to confirm approved VPNs or proxies were not involved.\n- If the source is valid, add these systems to the relevant 'Known' pages in the Admin section.\n- Verify the history of the identity\u2019s accesses around the incident time.\n- Consult the account owner to validate if the flagged access was authorized.\n- Block accesses from undesired locations, IP ranges, or ISPs.\n- Enable relevant authentication and access policies in the IDP.\n- Ensure all user access uses MFA and block MFA requests from unauthorized locations.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-impossible-travel"
+  },
+  {
+    "issue_type": "Suspected Access Token Sharing",
+    "title": "Remediation for Suspected Access Token Sharing",
+    "description": "Access tokens are random long strings used by services or users to access resources for a short duration. They are often not secured by strong cryptography and are easy to share with unauthorized parties.\n\n**Importance:** Access token sharing can lead to data leakage and breaches. It also creates compliance and audit issues if the data or resources involved are confidential.",
+    "steps": "- Verify the IP, hostname, and other details of the source in the incident. If legitimate, add an Exception in the Admin section.\n- Verify the history of the asset\u2019s accesses, focusing on source hostnames and IPs.\n- Verify the history of the identity\u2019s accesses, focusing on assets accessed and source IPs/hostnames.\n- Consult the concerned user or account owner to validate the flagged accesses.\n- If possible, restrict access to specific IPs, IP ranges, or hostnames.\n- Consider restricting access to specific geo-locations.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-access-token-sharing"
+  },
+  {
+    "issue_type": "Unauthorized Identity Access",
+    "title": "Remediation for Unauthorized Identity Access",
+    "description": "Unauthorized Identity Access occurs when an identity (user or service account) accesses assets in a manner that does not comply with the defined security policies.\n\n**Importance:** Unauthorized identity access can reveal significant risks such as misconfigured network controls, exposure to attacks, financial loss, and compromise of sensitive data.",
+    "steps": "- Review Incident Details to identify which policy and rule was violated.\n- Review the identity's entire posture for other risks (first-time violation, compromised indicators, weak credentials).\n- Check for recent brute force attacks or suspicious outbound connections associated with the user.\n- Interview the identity owner or manager to gain context on the access violation.\n- If the access is confirmed as authorized, update the configured policy to eliminate false positives.\n- If unauthorized, take appropriate containment and mitigation actions based on the specific violation.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unauthorized-identity-access"
+  },
+  {
+    "issue_type": "Unauthorized Identity Access",
+    "title": "Remediation for Unauthorized Identity Access",
+    "description": "Unauthorized identity access occurs when an entity (human or non-human) gains access to resources or data they are not explicitly permitted to view or manipulate. This often results from privilege escalation, orphaned accounts, or lack of proper access governance.\n\n**Importance:** Unchecked unauthorized access destroys the principle of least privilege, increasing the attack surface and 'blast radius' of any potential breach. It allows attackers to move laterally and access sensitive data without detection.",
+    "steps": "- Immediately revoke the unauthorized access rights or disable the compromised account.\n- Investigate the 'blast radius' to determine what data was accessed or modified.\n- Rotate credentials for the affected identity and any associated service accounts.\n- Implement specific access policies (RBAC/ABAC) to ensure only necessary permissions are granted.\n- Use Identity Observability tools to continuously map and validate access flows against approved baselines.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unauthorized-identity-access"
+  },
+  {
+    "issue_type": "Compromised Password",
+    "title": "Remediation for Compromised Password",
+    "description": "A compromised password is one that has been exposed in a data breach, stolen via phishing/keylogging, or is otherwise known to unauthorized parties.\n\n**Importance:** Compromised credentials are the most common entry point for attackers. Once a password is known, attackers can impersonate legitimate users, bypassing standard perimeter defenses.",
+    "steps": "- Force an immediate password reset for the affected user.\n- Revoke any active sessions or tokens associated with the account.\n- Scan the user's device for malware (keyloggers) that may have captured the credentials.\n- Enforce Multi-Factor Authentication (MFA) to prevent reuse of the stolen password.\n- Check other accounts where the user may have reused the same password and reset those as well.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-compromised-password"
+  },
+  {
+    "issue_type": "Weak Password",
+    "title": "Remediation for Weak Password",
+    "description": "Weak passwords are credentials that are short, lack complexity, are based on dictionary words, or are default values (e.g., 'password123', 'admin').\n\n**Importance:** Weak passwords are vulnerable to simple brute-force and dictionary attacks. They drastically lower the barrier to entry for attackers.",
+    "steps": "- Enforce a strong password policy requiring minimum length (e.g., 12+ characters), complexity (mix of case, numbers, symbols), and preventing common words.\n- Implement a check against known breached password lists (e.g., Have I Been Pwned) during password creation.\n- Enable account lockout policies to prevent rapid guessing.\n- Educate users on using passphrases or password managers to generate random, high-entropy passwords.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-weak-password"
+  },
+  {
+    "issue_type": "Unknown Access",
+    "title": "Remediation for Unknown Access",
+    "description": "Unknown access refers to login activity or resource usage that cannot be correlated to a known, managed identity or authorized device within the organization's inventory.\n\n**Importance:** You cannot secure what you cannot see. Unknown access often indicates 'Shadow IT', unmanaged external vendors, or a stealthy attacker operating outside the monitored directory infrastructure.",
+    "steps": "- Use identity discovery tools to map the unknown access to a specific user, service, or application.\n- If the access cannot be justified, block the source IP and revoke the credentials used.\n- Bring unmanaged 'shadow' accounts under central management (SSO/IdP).\n- Implement network access control (NAC) to prevent unmanaged devices from connecting to critical segments.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unknown-access"
+  },
+  {
+    "issue_type": "Shadow External Access",
+    "title": "Remediation for Shadow External Access",
+    "description": "Shadow External Access involves users connecting to third-party SaaS applications or external datasets that have not been vetted or approved by IT/Security.\n\n**Importance:** This bypasses corporate security controls, leading to data exfiltration risks and regulatory compliance violations (GDPR, HIPAA). It also creates 'orphan' data silos that are not backed up or secured.",
+    "steps": "- Block access to known unauthorized SaaS applications at the firewall or web proxy level.\n- Review CASB (Cloud Access Security Broker) logs to identify high-risk external applications.\n- Direct users to approved corporate alternatives for file sharing and collaboration.\n- Integrate popular SaaS apps with corporate SSO to ensure access is governed and visible.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-shadow-external-access"
+  },
+  {
+    "issue_type": "Deviation in Daily Asset Activity",
+    "title": "Remediation for Deviation in Daily Asset Activity",
+    "description": "This refers to significant anomalies in standard behavior, such as a user accessing a high volume of files, logging in at unusual times, or accessing systems they never visit.\n\n**Importance:** Deviations from baseline behavior are strong indicators of compromised insider accounts or automated malware (ransomware) enumerating the network.",
+    "steps": "- Review the specific activities (time, volume, resource) that triggered the deviation.\n- Contact the user to verify if the activity was legitimate business need.\n- If unauthorized, lock the account and isolate the device immediately.\n- Adjust behavioral baseline thresholds if the activity is determined to be a new legitimate workflow.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-deviation-in-daily-asset-activity"
+  },
+  {
+    "issue_type": "LDAP Related Issues",
+    "title": "Remediation for LDAP Related Issues",
+    "description": "Lightweight Directory Access Protocol (LDAP) is used for directory services. Issues arise when it is used without encryption (Port 389) or allows anonymous binds.\n\n**Importance:** Clear-text LDAP exposes credentials to anyone sniffing the network. Anonymous binds can allow attackers to enumerate all users and groups without authentication.",
+    "steps": "- Enforce LDAPS (LDAP over SSL) on Port 636 to encrypt traffic.\n- Disable anonymous LDAP binds on the Domain Controller.\n- Enable LDAP signing and channel binding to prevent replay and man-in-the-middle attacks.\n- Audit logs for insecure LDAP binds and migrate applications to secure authentication methods.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-ldap-related-issues"
+  },
+  {
+    "issue_type": "SMTP Related Issues",
+    "title": "Remediation for SMTP Related Issues",
+    "description": "SMTP is the standard protocol for sending email. Vulnerabilities include open relays, lack of encryption, and weak authentication.\n\n**Importance:** Unsecured SMTP servers can be abused to send spam/phishing (damaging domain reputation) or intercepted to read sensitive email content.",
+    "steps": "- Disable open relays to prevent unauthorized external use.\n- Configure STARTTLS to encrypt email transmission in transit.\n- Implement SPF, DKIM, and DMARC records to prevent domain spoofing.\n- Disable legacy authentication for SMTP submission and require Modern Auth (OAuth) where possible.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-smtp-related-issues"
+  },
+  {
+    "issue_type": "FTP Related Issues",
+    "title": "Remediation for FTP Related Issues",
+    "description": "File Transfer Protocol (FTP) transmits data and credentials in clear text. It is a legacy protocol with no built-in security features.\n\n**Importance:** Using FTP allows attackers to easily capture usernames, passwords, and file contents via packet sniffing.",
+    "steps": "- Replace standard FTP with SFTP (SSH File Transfer Protocol) or FTPS (FTP over SSL).\n- Disable the FTP service on servers where it is not explicitly required.\n- If FTP must be used, restrict access to specific trusted IP addresses via firewall rules.\n- Ensure anonymous FTP login is disabled.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-ftp-related-issues"
+  },
+  {
+    "issue_type": "IMAP Related Issues",
+    "title": "Remediation for IMAP Related Issues",
+    "description": "IMAP is a legacy email retrieval protocol. Like POP, it often supports basic authentication which does not support MFA.\n\n**Importance:** Legacy protocols like IMAP are a primary target for password spray attacks because they bypass MFA enforcement policies.",
+    "steps": "- Disable IMAP4 access for users who do not strictly need it.\n- If required, enforce 'Modern Authentication' (OAuth 2.0) for IMAP connections.\n- Block IMAP traffic from outside the corporate network or from non-compliant devices.\n- Monitor IMAP login logs for high-volume failure events indicative of brute-force attacks.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-imap-related-issues"
+  },
+  {
+    "issue_type": "POP Related Issues",
+    "title": "Remediation for POP Related Issues",
+    "description": "POP is a legacy Mail Protocol that works by contacting your email service and transfers mail messages from source to destination in plain text. It is inherently insecure and does not encrypt messages or content.\n\n**Importance:** Because POP transfers data in clear text, any information within the message is visible to anyone with access to the servers or network path the email traverses.",
+    "steps": "- Enable 'Security Defaults' in Exchange Online to automatically disable POP3 and IMAP4.\n- Disable Basic Authentication in Exchange Online to block legacy protocols and prevent password spray attacks.\n- If using POP3, configure the virtual service to use STARTTLS for opportunistic encryption.\n- For Exchange Server: Start the 'Microsoft Exchange POP3' (frontend) and 'Microsoft Exchange POP3 Backend' services.\n- Configure POP3 settings: Use Port 995 for always-encrypted TLS connections.\n- Block legacy authentication protocols in Azure AD, as they do not support Multi-Factor Authentication (MFA) and are frequent targets for compromising sign-in attempts.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-pop-related-issues"
+  },
+  {
+    "issue_type": "NFS Related Issues",
+    "title": "Remediation for NFS Related Issues",
+    "description": "NFS, like any other unprotected network protocol, is vulnerable to two types of attacks: eavesdropping (picking up unauthorized data) and impostor attacks (gaining unauthorized access). An NFS server cannot distinguish falsified file handles from legitimate ones established by the mountd daemon.\n\n**Importance:** A client who manages to snoop the network and steal a file handle can read and modify any file on the server not owned by root. Unprotected NFS traffic exposes data to modification and theft.",
+    "steps": "- Run the latest version of NFS (NFSv4) whenever possible.\n- In AWS: Mount file systems so all NFS traffic is encrypted in transit using Transport Layer Security 1.2 (TLS) with AES-256 cipher.\n- In AWS: Use IAM policies (e.g., aws:SecureTransport Condition Key) to enforce encryption in transit for NFS client access to Amazon EFS.\n- In Azure: Use Azure NetApp Files with NFS client encryption in Kerberos modes (krb5, krb5i, or krb5p) with AES-256 encryption.\n- Ensure Active Directory Domain Services (AD DS) or AADDS connection for Kerberos ticketing.\n- For Windows/NFSv4.1: Use Kerberos (RPCSEC_GSS) with 'krb5p' (privacy/encryption) for the highest security.\n- Avoid using 'unmapped user access' (AUTH_SYS) as it removes authentication protections.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-nfs-related-issues"
+  },
+  {
+    "issue_type": "SMB Related Issues",
+    "title": "Remediation for SMB Related Issues",
+    "description": "Server Message Block (SMB) is a network file sharing protocol. The Microsoft implementation is known as Microsoft SMB Protocol, and CIFS is a dialect of SMB. Older versions like SMB1 lack critical security features.\n\n**Importance:** Using SMB1 forfeits key protections available in later versions, such as Pre-authentication Integrity (prevents downgrade attacks), Secure Dialect Negotiation, Encryption (prevents wire inspection/MITM), and better message signing (HMAC SHA-256/AES-CMAC).",
+    "steps": "**SMB Encryption (On-Premises)**\n- Enable SMB Encryption to protect data from interception in scenarios like WAN transfers or server applications (SQL, Hyper-V).\n- Ensure support for AES-256-GCM and AES-256-CCM cryptographic suites (available in Windows Server 2022/Windows 11).\n- Retain support for AES-128-GCM for balance of security and performance (default in SMB 3.1.1).\n- Note: SMB Encryption protects data in transit; use BitLocker for data at rest.\n\n**Azure Files**\n- Utilize SMB channel encryption (AES-256-GCM, AES-128-GCM, AES-128-CCM).\n- Implement network isolation with Azure private endpoints.\n- Use AD domain join and discretionary access control lists (DACLs).\n- Enable internet-safe SMB 3.0+ for accessible file shares.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-smb-related-issues"
+  },
+  {
+    "issue_type": "Telnet Related Issues",
+    "title": "Remediation for Telnet Related Issues",
+    "description": "Telnet is not a secure communication protocol because it does not encrypt client-server communication. It transfers data, including passwords, over the network/internet in plain-text form.\n\n**Importance:** Telnet exposes networks to snooping, man-in-the-middle attacks, and credential theft. Vulnerabilities (e.g., CVE-2020-10188) also allow remote attackers to cause denial-of-service conditions or take control of affected systems.",
+    "steps": "- Replace Telnet with Secure Shell (SSH) immediately for all remote management.\n- Use SSH to encrypt all communication, including login sessions and file transfers.\n- Ensure SSH is running on the default port 22 (or a custom secure port).\n- For Windows: Use the built-in SSH client in Windows Terminal or Command Prompt (`ssh user@machine`).\n- Configure Windows Terminal profiles to launch SSH sessions on startup if needed.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-telnet-related-issues"
+  },
+  {
+    "issue_type": "NTLM Related Issues",
+    "title": "Remediation for NTLM Related Issues",
+    "description": "NTLM (Windows New Technology LAN Manager) is an authentication protocol that uses a challenge/response mechanism to prove a user's identity. Passwords stored on the server are not 'salted', making them vulnerable to cracking.\n\n**Importance:** Because NTLM hashes are unsalted, adversaries can authenticate using just the hash (pass-the-hash) without knowing the password. Attackers can also trigger NTLM relay attacks by tricking servers into sharing credentials via SMB.",
+    "steps": "- Transition to the Kerberos security package, which provides greater security than NTLM.\n- Use the Negotiate security package to automatically select Kerberos whenever supported.\n- Audit current NTLM traffic (Outgoing from DC, Incoming to servers) before blocking it to avoid service outages.\n- Configure the 'Restrict NTLM: NTLM authentication in this domain' Group Policy on Domain Controllers to deny NTLM traffic.\n- Review the 'NTLM/Operational' event log to identify authentication failures and necessary exceptions.\n- Configure the 'Restrict NTLM: Incoming NTLM traffic' Group Policy on remote servers to deny incoming NTLM requests.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-ntlm-related-issues"
+  },
+  {
+    "issue_type": "HTTP Related Issues",
+    "title": "Remediation for HTTP Related Issues",
+    "description": "HTTP (HyperText Transfer Protocol) connects web servers but is inherently insecure as it transmits data in plain text. HTTPS (Hypertext Transfer Protocol Secure) encrypts this communication.\n\n**Importance:** Data sent over HTTP can be easily 'sniffed' by monitoring software, especially on public Wi-Fi. It lacks identity verification. HTTPS prevents snooping and validates the website's identity via certificates.",
+    "steps": "**General Remediation**\n- Inventory and assess all HTTP settings.\n- Configure and enable HTTPS on all web servers.\n- Obtain an SSL certificate (buy or request from a CA).\n- Install the certificate and update the site configuration to enforce HTTPS.\n\n**Microsoft Azure CDN**\n- Enable HTTPS on custom domains to secure data via TLS/SSL.\n- Use the default enabling for CDN endpoints (e.g., contoso.azureedge.net).\n- For custom domains, choose between CDN-managed certificates (free, auto-renewal) or bringing your own certificate.\n- Validate domain ownership via CNAME records or email validation.\n\n**AWS**\n- Create a security group allowing inbound HTTPS connections on TCP port 443.\n- Assign this security group to the web server instance.\n- Verify SSL/TLS offload works using a browser or OpenSSL (`openssl s_client -connect <server>:443`).\n\n**Exchange & Legacy Protocols**\n- For Exchange: Start POP3 services (Frontend and Backend) and configure external client settings to use Port 995 (TLS).\n- Block legacy authentication protocols (IMAP, SMTP, POP3) in Azure AD as they bypass MFA and are frequent targets for attacks.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-http-related-issues"
+  },
+  {
+    "issue_type": "RADIUS Related Issues",
+    "title": "Remediation for RADIUS Related Issues",
+    "description": "RADIUS (Remote Authentication Dial-In User Service) is a client-server protocol that enables remote access servers to communicate with a central server to authenticate dial-in users and authorize their access.\n\n**Importance:** Security weaknesses in RADIUS include issues with user credential validation, MFA, password complexity, and dynamic VLAN assignment. Vulnerabilities can allow attackers to be authorized as subscribers without providing valid passwords (e.g., the 2018 Cisco Policy Suite vulnerability).",
+    "steps": "**General Remediation**\n- Configure and enable RADIUS communication over TLS (RADSec) to secure the channel.\n\n**AWS Remediation**\n- Enable MFA for AWS Managed Microsoft AD using the built-in RADIUS client.\n- Use MFA in AWS SSO as an alternative for user portal sign-ins, which overrides RADIUS MFA for that specific access.\n\n**Microsoft Azure AD Remediation**\n- Install the Azure AD MFA NPS extension on the Windows Network Policy Server (NPS) to apply MFA to RADIUS workloads (VPN, WiFi, RDG).\n- Prefer upgrading VPNs to SAML and directly federating with Azure AD instead of relying on RADIUS and the NPS extension. This provides conditional access and identity protection.\n\n**Okta Remediation**\n- Install and configure the Okta RADIUS server agent (available for Windows and Linux).\n- Enable Multifactor Authentication (MFA) policies in Okta and assign them to the RADIUS application.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-radius-related-issues"
+  },
+  {
+    "issue_type": "DIAMETER Related Issues",
+    "title": "Remediation for DIAMETER Related Issues",
+    "description": "The Diameter Protocol is the global standard signaling protocol used for telecommunications traffic (4G and LTE) and serves as the foundation for AAA functionalities in next-generation networks (defined in RFC 6733).\n\n**Importance:** Vulnerabilities in the Diameter protocol can lead to serious security risks, including location tracking, voice/SMS interception, subscriber denial of service (DoS), account fraud, and the interception of user data sessions.",
+    "steps": "- Ensure all Diameter base protocol implementations support the use of Transport Layer Security (TLS) / TCP and Datagram Transport Layer Security (DTLS) / SCTP or IPsec.\n- Configure security parameters for TLS/TCP and DTLS/SCTP or IPsec independent of the Diameter protocol.\n- Establish Diameter peer-to-peer secure connections prior to any Diameter message exchange.\n- Protect connections between Diameter peers using TLS/TCP and DTLS/SCTP.\n- Use dedicated Payload Protocol Identifiers (PPIDs) for SCTP DATA chunks instead of the unspecified value 0.\n- Use PPID value 46 for Diameter messages in clear text SCTP DATA chunks.\n- Use PPID value 47 for Diameter messages in protected DTLS/SCTP DATA chunks.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-diameter-related-issues"
+  },
+  {
+    "issue_type": "Enumeration of AD Admins",
+    "title": "Remediation for Enumeration of AD Admins",
+    "description": "Enumeration of AD Admins is an attack where a malicious actor uses brute-force techniques to determine if specific administrator usernames exist in the directory. Attackers rely on distinct server responses (e.g., 'user unknown' vs. 'incorrect password') to confirm the validity of a username.\n\n**Importance:** Validating admin usernames is a critical step for attackers before launching targeted password brute-force attacks. Gaining access to an admin account is akin to stealing the 'crown jewels,' allowing attackers to interrupt services, deny system access, and halt business operations.",
+    "steps": "- Disable the 'listing of other users' permission to prevent enumeration.\n- Rate limit IP access attempts and block known IPs identified in the AuthMind console.\n- Ensure server responses to incorrect credentials are ambiguous (e.g., returning generic messages like 'The username or password is not valid' instead of specific errors).\n- Implement a Next-Generation Firewall (NGFW) to limit the number of failed authentication attempts from multiple IPs.\n- Deploy a Web Application Firewall (WAF) to filter traffic from malicious sources.\n- Implement Multi-Factor Authentication (MFA) as an additional verification layer.\n- Protect domain controllers and critical assets by defining strict access policies and verifying enforcement using AuthMind's Unauthorized Access Playbook.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-enumeration-of-ad-admins"
+  },
+  {
+    "issue_type": "Enumeration of AD Users",
+    "title": "Remediation for Enumeration of AD Users",
+    "description": "User enumeration is an attack where a malicious actor uses brute-force techniques to determine if certain usernames exist in the system. They analyze server responses (e.g., distinct errors like 'user unknown' vs 'incorrect password') to confirm the validity of a username.\n\n**Importance:** Once attackers have a list of valid accounts, they can proceed to brute-force passwords for those specific accounts. Successful access can lead to sensitive data theft, impersonation, and lateral movement across the network.",
+    "steps": "- Disable the 'listing of other users' permission to prevent attackers from querying the directory list.\n- Rate limit IP access attempts and block known malicious IPs identified in the AuthMind console.\n- Ensure server responses to incorrect credentials are ambiguous (e.g., returning 'The username or password is not valid' regardless of which part was incorrect).\n- Implement a Next-Generation Firewall (NGFW) to limit the number of failed authentication attempts from multiple IPs.\n- Consider implementing a Web Application Firewall (WAF) to filter traffic from malicious sources.\n- Implement Multi-Factor Authentication (MFA) as an additional layer of verification.\n- Protect domain controllers and critical assets by creating strict access policies and verifying enforcement using the AuthMind Unauthorized Access Playbook.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-enumeration-of-ad-users"
+  },
+  {
+    "issue_type": "Suspected Attack on Disabled AD Account",
+    "title": "Remediation for Suspected Attack on Disabled AD Account",
+    "description": "A suspected attack on a disabled AD account occurs when AuthMind identifies repeated attempts to log in using an account that has been moved to disabled status (e.g., due to employees leaving).\n\n**Importance:** Disabled accounts often retain default or weak passwords, making them easier to crack. If compromised, attackers with admin access could reactivate them for malicious use. Repeated authentication attempts can also overload the directory service, causing performance issues and service interruptions.",
+    "steps": "- Set a random password when disabling the account to prevent easy cracking.\n- Create a clear policy for reviewing disabled and expired account lists, defining how long accounts remain disabled before permanent deletion.\n- Monitor disabled account reactivations and password changes.\n- Review login attempts using disabled accounts in the AuthMind console to identify and block the attack source.\n- Create an Unauthorized Access playbook to specifically monitor any discovered targeted accounts.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-attack-on-disabled-accou"
+  },
+  {
+    "issue_type": "Suspected Attack on Expired AD Account",
+    "title": "Remediation for Suspected Attack on Expired AD Account",
+    "description": "An attack on an expired account occurs when repeated login attempts are detected on an Active Directory account where the expiry date has already passed.\n\n**Importance:** Expired accounts often retain default or weak passwords that are easily cracked. If compromised, attackers with administrative access could reactivate them to hide malicious activity. Additionally, repeated authentication attempts on these accounts can overload the directory, reducing performance and interrupting services.",
+    "steps": "- Set a random, complex password when initially disabling or expiring the account to prevent easy cracking.\n- Establish a clear policy for reviewing lists of disabled and expired accounts, defining a specific timeframe for permanent deletion.\n- Monitor for any account reactivations or password changes on expired accounts.\n- Review login attempts in the AuthMind console to identify the attack source and block it.\n- Create an Unauthorized Access playbook to specifically monitor any targeted expired accounts found.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-attack-on-expired-accoun"
+  },
+  {
+    "issue_type": "Suspected Attack on Locked AD Account",
+    "title": "Remediation for Suspected Attack on Locked AD Account",
+    "description": "A suspected attack on a locked account occurs when AuthMind identifies repeated attempts to log in using an Active Directory account that has been locked manually by an admin or automatically due to security policies.\n\n**Importance:** Attacks on locked accounts may indicate that the user account was already compromised and locked as an automatic mitigation step. Like disabled accounts, they often retain default passwords that are easily cracked. Furthermore, repeated authentication attempts can overload the directory service, reducing performance and interrupting organization-wide services.",
+    "steps": "- Set a random password when disabling or locking the account to prevent easy cracking.\n- Create a clear policy for monitoring locked accounts to determine if they should remain active or be removed from the domain controller.\n- Review login attempts using locked accounts in the AuthMind console to identify and block the source of the attack.\n- Create an Unauthorized Access playbook to specifically monitor the targeted account once discovered.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-attack-on-locked-account"
+  },
+  {
+    "issue_type": "Suspected Directory/IdP Bot Attack",
+    "title": "Remediation for Suspected Directory/IdP Bot Attack",
+    "description": "Bot attacks refer to situations where bad actors use automated software agents (bots) to gain unauthorized access or exploit a vulnerability in the directory infrastructure. These attacks often originate from multiple sources and target multiple accounts or assets simultaneously.\n\n**Importance:** A successful bot attack grants attackers access to accounts within the organization\u2019s domain controller. This allows them to conduct malicious activities\u2014such as disrupting operations or collecting sensitive data\u2014with a lower chance of detection compared to manual attacks.",
+    "steps": "- Review the data in the \u201cSuspected Directory/IdP Bot Attack\u201d incident on the AuthMind console to identify the attack source(s) and targeted accounts.\n- Rate limit or block the source IP address of the attack.\n- Lock or disable the accounts being used for the attack to prevent further access.\n- Once the source machine is identified, remove the bot using antivirus software or disconnect the machine from the network (physically or via firewall/NAC).",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-directory-bot-attack"
+  },
+  {
+    "issue_type": "Suspected AD Brute-Force Attack",
+    "title": "Remediation for Suspected AD Brute-Force Attack",
+    "description": "A brute force attack is when a malicious actor uses a process of trial-and-error to guess the passwords of various accounts and gain access to the network and resources once a match has been found.\n\n**Importance:** A successful attack allows attackers to access resources, collect sensitive data, and disrupt business operations while hiding their identity. Additionally, the high volume of login attempts can cause directory performance reduction and service interruptions.",
+    "steps": "- Review the information provided in the 'Suspected AD Brute-Force Attack' incident on the AuthMind console.\n- Block or rate-limit the suspected source IP addresses (can be done via AD configuration).\n- Shut down suspected compromised machines (Hostnames).\n- Disable or lock the suspected accounts targeted in the attack.\n- Block identified MAC addresses on switch ports from accessing the directory.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-ad-brute-force-att"
+  },
+  {
+    "issue_type": "Suspected Identity Brute-Force Attack",
+    "title": "Remediation for Suspected Identity Brute-Force Attack",
+    "description": "A suspected identity brute-force attack occurs when a malicious actor uses a trial-and-error process to guess passwords for various accounts to gain access to the network and resources.\n\n**Importance:** A successful attack grants attackers access to network resources, allows them to collect sensitive data, and disrupts business operations while hiding their true identity. Additionally, the high volume of login attempts can cause performance reductions on the directory and service interruptions.",
+    "steps": "- Review the information provided in the 'Suspected Identity Brute-Force Attack' incident on the AuthMind console.\n- Block or rate-limit the suspected source IP addresses (can be done via AD or IdP configuration).\n- Shut down suspected compromised machines (Hostnames).\n- Disable or lock the suspected accounts targeted in the attack.\n- Block identified MAC addresses on switch ports from accessing the identity.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-identity-brute-force-att"
+  },
+  {
+    "issue_type": "Suspected AD NTLM Relay Attack",
+    "title": "Remediation for Suspected AD NTLM Relay Attack",
+    "description": "An NTLM relay attack is a Man-In-The-Middle (MITM) attack where a malicious actor positions themselves between an authenticating entity and the directory. They relay the authentication request to the directory and collect valid credentials or tokens from the response to access other assets.\n\n**Importance:** A successful NTLM relay attack allows attackers to access sensitive data, perform disruptive operations by impersonating users, and cause significant business damage.",
+    "steps": "- Review the information in the 'Suspected AD NTLM Relay Attack' incident on the AuthMind console.\n- Block or rate-limit the suspected source IP addresses involved in the attack.\n- Shut down suspected compromised machines (Hostnames).\n- Disable or lock the suspected accounts used for the attack.\n- Block identified MAC addresses on switch ports from accessing the directory.\n- Limit or replace the use of NTLM (v1 and v2) with more secure authentication protocols (e.g., Kerberos).",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-ntlm-relay-attack"
+  },
+  {
+    "issue_type": "Suspected Directory/IdP Password Spray Attack",
+    "title": "Remediation for Suspected Directory/IdP Password Spray Attack",
+    "description": "A password spray attack is similar to a brute-force attack, but instead of targeting a single account, the malicious actor attempts to gain access to many accounts using commonly used passwords. This low volume of attempts per account helps avoid triggering account lockouts and detection.\n\n**Importance:** A successful password spray attack allows attackers to access network resources, collect sensitive data, and disrupt business operations while remaining hidden. Additionally, the large volume of total login attempts can degrade directory performance and cause service interruptions.",
+    "steps": "- Review the information provided in the 'Suspected Directory/IdP Password Spray Attack' incident on the AuthMind console.\n- Block or rate-limit the suspected source IP addresses involved in the attack.\n- Shut down suspected compromised machines (Hostnames).\n- Disable or lock the suspected accounts targeted in the attack.\n- Block identified MAC addresses on switch ports from accessing the directory.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-password-spray-attack"
+  },
+  {
+    "issue_type": "Repeated AD Login Attempts from Invalid Device",
+    "title": "Remediation for Repeated AD Login Attempts from Invalid Device",
+    "description": "This attack occurs when attempts are made to access assets from an unauthorized device or devices, violating the policies created by admins in Active Directory regarding which devices can access specific assets.\n\n**Importance:** Unauthorized device logins often indicate an ongoing attack to break into the organization's critical infrastructure. A successful breach allows attackers to access network resources, collect sensitive data, and disrupt business operations.",
+    "steps": "- Review the information provided in the incident for 'Repeated Login Attempts from Invalid Device' on AuthMind\u2019s console.\n- Block the suspected source IP addresses of the attacker.\n- Shut down suspected compromised machines (Hostnames).\n- Block identified MAC addresses on the switch ports from accessing the directory.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unauthorized-login-device"
+  },
+  {
+    "issue_type": "Repeated AD Login Attempts at Invalid Time",
+    "title": "Remediation for Repeated AD Login Attempts at Invalid Time",
+    "description": "Active Directory enables admins to create policies on permitted times when devices and/or users are allowed access. When attempts are made to access these assets outside the permitted times, it is classified as a 'Repeated Login Attempts at Invalid Time' attack.\n\n**Importance:** Logins outside the permitted time could indicate an attack underway to break into the organization\u2019s critical infrastructure. A successful attack allows the attacker to access resources, collect sensitive data, and disrupt business operations.",
+    "steps": "- Review the information provided in the incident for 'Repeated AD Login Attempts at Invalid Time' on AuthMind\u2019s console.\n- Disable or lock the suspected compromised account.\n- Block the suspected source IP addresses of the attacker.\n- Shutdown suspected compromised machines (Hostnames).\n- Block identified MAC addresses on the switch ports from accessing the directory.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-unauthorized-login-time"
+  },
+  {
+    "issue_type": "Suspected AD Golden Ticket Attack",
+    "title": "Remediation for Suspected AD Golden Ticket Attack",
+    "description": "A Golden Ticket attack is a severe cybersecurity threat in Active Directory environments where an attacker forges a Kerberos Ticket Granting Ticket (TGT) for any user, including Domain Admins, to acquire persistent access to AD resources.\n\n**Importance:** This attack exploits the KRBTGT account, which signs Kerberos tickets. It allows attackers to bypass traditional security measures and maintain prolonged unauthorized access to the core identity system.",
+    "steps": "- Review the incident details for 'Suspected AD Golden Ticket Attack' in the AuthMind console.\n- Reset the KRBTGT account password twice. This is necessary because the account retains two password versions (current and previous), and resetting it twice invalidates all existing Kerberos tickets, including forged ones.\n- Identify the attacker using the AuthMind Identity Posture page to spot unusual access patterns or tools like Mimikatz.\n- Revoke existing Kerberos tickets by restarting services or forcing re-authentication.\n- Verify that Domain Admin and other privileged accounts are not compromised; reset their passwords if necessary.\n- Monitor for persistence mechanisms like scheduled tasks, registry modifications, or backdoor accounts.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-ad-golden-ticket-attack"
+  },
+  {
+    "issue_type": "Suspected AD Pass-the-Ticket Attack",
+    "title": "Remediation for Suspected AD Pass-the-Ticket Attack",
+    "description": "A Pass-the-Ticket (PtT) attack is a technique where an attacker exploits a stolen Kerberos Ticket Granting Ticket (TGT) or Service Ticket to gain unauthorized access to systems and resources within a network. Instead of compromising credentials, the attacker directly reuses a valid ticket to impersonate a user.\n\n**Importance:** Defending against these attacks is crucial as they target the core of an organization\u2019s identity and authentication system (Kerberos). If left unchecked, they can lead to severe security breaches and prolonged unauthorized access that evades traditional security measures.",
+    "steps": "**Immediate Containment**\n- Identify and isolate the compromised systems.\n- Revoke tickets by forcing re-authentication of all accounts.\n- Reset passwords for all compromised accounts.\n\n**Long-Term Hardening**\n- Strengthen the Kerberos environment by resetting the KRBTGT account.\n- Reinforce regular monitoring of logs.\n- Enforce security best practices like Multi-Factor Authentication (MFA) and network segmentation.\n- Adopt zero trust principles and conduct regular penetration testing.",
+    "reference_url": "https://docs.authmind.com/en/remediation-best-practices/Release2026.01.11/AUTHMIND/remediation-for-suspected-ad-pass-the-ticket-attac"
+  }
+]
