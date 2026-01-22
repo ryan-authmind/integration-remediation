@@ -380,11 +380,11 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 
     // Fetch Remediation Recommendation
     var remediation database.RemediationRecommendation
-    // Try exact match on IssueType
-    if err := database.DB.Where("issue_type = ?", templateIssueType).First(&remediation).Error; err != nil {
+    // Try case-insensitive exact match on IssueType
+    if err := database.DB.Where("LOWER(TRIM(issue_type)) = LOWER(TRIM(?))", templateIssueType).First(&remediation).Error; err != nil {
         // Fallback: Try to find a recommendation that matches the Workflow Name if IssueType didn't work
         if templateIssueType != wf.Name {
-             database.DB.Where("issue_type = ?", wf.Name).First(&remediation)
+             database.DB.Where("LOWER(TRIM(issue_type)) = LOWER(TRIM(?))", wf.Name).First(&remediation)
         }
     }
 
