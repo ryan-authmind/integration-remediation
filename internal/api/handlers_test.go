@@ -305,7 +305,13 @@ func TestGetJobs_And_Logs(t *testing.T) {
 	job := database.Job{Status: "completed", WorkflowID: wf.ID, AuthMindIssueID: "issue-1", TenantID: 1}
 	database.DB.Create(&job)
 	
-	log := database.JobLog{JobID: job.ID, Message: "Test Log"}
+	log := database.JobLog{
+        JobID: job.ID, 
+        Message: "Test Log",
+        StepName: "Branded Step",
+        StatusCode: 201,
+        ResponseBody: `{"success": true}`,
+    }
 	database.DB.Create(&log)
 	
 	// Get Jobs
@@ -319,7 +325,15 @@ func TestGetJobs_And_Logs(t *testing.T) {
 	req2, _ := http.NewRequest("GET", fmt.Sprintf("/api/jobs/%d/logs", job.ID), nil)
 	router.ServeHTTP(w2, req2)
 	assert.Equal(t, http.StatusOK, w2.Code)
-	assert.Contains(t, w2.Body.String(), "Test Log")
+	
+    var logsResp []database.JobLog
+    json.Unmarshal(w2.Body.Bytes(), &logsResp)
+    
+    assert.Len(t, logsResp, 1)
+    assert.Equal(t, "Test Log", logsResp[0].Message)
+    assert.Equal(t, "Branded Step", logsResp[0].StepName)
+    assert.Equal(t, 201, logsResp[0].StatusCode)
+    assert.JSONEq(t, `{"success": true}`, logsResp[0].ResponseBody)
 }
 
 func TestGetDashboardStats(t *testing.T) {

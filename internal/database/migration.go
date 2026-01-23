@@ -29,7 +29,8 @@ func MigrateJobLogs(db *gorm.DB) error {
 
     // Regex patterns for parsing legacy messages
     // Example: "Step 0 (Slack Notification) completed successfully (Status: 200)"
-    stepNameRegex := regexp.MustCompile(`\((.*?)\)`)
+    // Also handle: "Failed to find action definition 1..." or other system logs
+    stepNameRegex := regexp.MustCompile(`Step \d+ \((.*?)\)`)
     statusCodeRegex := regexp.MustCompile(`\(Status: (\d+)\)`)
 
     for i := range logs {
@@ -39,6 +40,15 @@ func MigrateJobLogs(db *gorm.DB) error {
         nameMatch := stepNameRegex.FindStringSubmatch(l.Message)
         if len(nameMatch) > 1 {
             l.StepName = nameMatch[1]
+        } else {
+            // Fallback for non-step logs (e.g. system errors)
+            if strings.Contains(l.Message, "Failed to find") {
+                l.StepName = "System Error"
+            } else if strings.Contains(l.Message, "Integration") && strings.Contains(l.Message, "disabled") {
+                l.StepName = "Integration Check"
+            } else {
+                l.StepName = "Process"
+            }
         }
 
         // 2. Extract Status Code
