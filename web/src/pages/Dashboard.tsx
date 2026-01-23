@@ -234,7 +234,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                             fontSize: '0.75rem'
                         },
                         '& .MuiStepConnector-root': {
-                            top: 32, // Adjust based on icon size and label height
+                            top: 32, 
                             left: 'calc(-50% + 20px)',
                             right: 'calc(50% + 20px)'
                         },
@@ -244,11 +244,8 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                     }}>
                         {logs.map((log) => {
                             const status = getLogStatusColor(log);
-                            const hasResponse = log.message.includes('\nResponse: ');
-                            const mainPart = hasResponse ? log.message.split('\nResponse: ')[0] : log.message;
-                            const statusMatch = mainPart.match(/\(Status: (\d+)\)/);
-                            const statusCode = statusMatch ? statusMatch[1] : null;
-                            const cleanTitle = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
+                            const mainPart = log.message.split('\nResponse: ')[0];
+                            const cleanTitle = mainPart.split(' (Status: ')[0].trim();
 
                             return (
                                 <Step key={log.id}>
@@ -348,10 +345,8 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Step Name</Typography>
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                                     {(() => {
-                                        const parts = selectedLog.message.split('\nResponse: ');
-                                        const mainPart = parts[0];
-                                        const statusMatch = mainPart.match(/\(Status: (\d+)\)/);
-                                        return statusMatch ? mainPart.replace(`(Status: ${statusMatch[1]})`, '').trim() : mainPart;
+                                        const mainPart = selectedLog.message.split('\nResponse: ')[0];
+                                        return mainPart.split(' (Status: ')[0].trim();
                                     })()}
                                 </Typography>
                             </Box>
@@ -384,7 +379,9 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                 bgcolor: 'action.hover', 
                                 p: 2, 
                                 borderRadius: 2,
-                                borderStyle: 'dashed'
+                                borderStyle: 'dashed',
+                                maxHeight: '500px',
+                                overflow: 'auto'
                             }}>
                                 <Typography variant="body2" sx={{ 
                                     fontFamily: 'monospace', 
@@ -396,13 +393,14 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                     {(() => {
                                         const parts = selectedLog.message.split('\nResponse: ');
                                         if (parts.length > 1) {
+                                            const responsePart = parts[1];
                                             try {
-                                                const prettyJson = JSON.stringify(JSON.parse(parts[1]), null, 2);
-                                                return `${parts[0]}\n\nResponse Payload:\n${prettyJson}`;
+                                                return JSON.stringify(JSON.parse(responsePart), null, 2);
                                             } catch (e) {
-                                                return selectedLog.message;
+                                                return responsePart;
                                             }
                                         }
+                                        // If no Response: part, show the whole thing but maybe it's just the step name + status
                                         return selectedLog.message;
                                     })()}
                                 </Typography>
