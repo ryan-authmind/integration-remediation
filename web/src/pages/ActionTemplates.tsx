@@ -31,6 +31,9 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import InfoIcon from '@mui/icons-material/Info';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import InputAdornment from '@mui/material/InputAdornment';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { useTenant } from '../context/TenantContext';
 
@@ -82,6 +85,8 @@ export default function ActionTemplates() {
   const { selectedTenant } = useTenant();
   const [actions, setActions] = useState<ActionDefinition[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [search, setSearch] = useState('');
+  const [methodFilter, setMethodFilter] = useState('');
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
@@ -107,7 +112,7 @@ export default function ActionTemplates() {
   useEffect(() => {
     fetchActions();
     fetchIntegrations();
-  }, [selectedTenant]);
+  }, [selectedTenant, search, methodFilter]);
 
   // Configure Monaco Autocomplete - Runs once per monaco instance
   useEffect(() => {
@@ -156,7 +161,7 @@ export default function ActionTemplates() {
 
   const fetchActions = async () => {
     try {
-      const res = await client.get('/actions', {
+      const res = await client.get(`/actions?search=${search}&method=${methodFilter}`, {
           headers: { 'X-Tenant-ID': selectedTenant.toString() }
       });
       setActions(res.data);
@@ -254,6 +259,39 @@ export default function ActionTemplates() {
         >
             Create Action
         </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <TextField
+            size="small"
+            placeholder="Search name, vendor or path..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+                startAdornment: (
+                    <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                ),
+            }}
+            sx={{ width: 350 }}
+        />
+        
+        <Select
+            size="small"
+            displayEmpty
+            value={methodFilter}
+            onChange={(e) => setMethodFilter(e.target.value)}
+            startAdornment={<FilterListIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }} />}
+            sx={{ minWidth: 150 }}
+        >
+            <MenuItem value="">All Methods</MenuItem>
+            <MenuItem value="GET">GET</MenuItem>
+            <MenuItem value="POST">POST</MenuItem>
+            <MenuItem value="PUT">PUT</MenuItem>
+            <MenuItem value="PATCH">PATCH</MenuItem>
+            <MenuItem value="DELETE">DELETE</MenuItem>
+        </Select>
       </Box>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>

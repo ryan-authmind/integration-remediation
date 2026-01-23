@@ -19,12 +19,18 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Select,
+  MenuItem,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 
@@ -55,15 +61,18 @@ export default function Workflows() {
   const { selectedTenant } = useTenant();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [triggerFilter, setTriggerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchWorkflows();
-  }, [selectedTenant]);
+  }, [selectedTenant, search, triggerFilter, statusFilter]);
 
   const fetchWorkflows = async () => {
     try {
-      const res = await client.get('/workflows', {
+      const res = await client.get(`/workflows?search=${search}&trigger_type=${triggerFilter}&enabled=${statusFilter}`, {
           headers: { 'X-Tenant-ID': selectedTenant.toString() }
       });
       setWorkflows(res.data);
@@ -115,6 +124,49 @@ export default function Workflows() {
         >
             New Workflow
         </Button>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <TextField
+            size="small"
+            placeholder="Search workflows..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+                startAdornment: (
+                    <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                ),
+            }}
+            sx={{ width: 300 }}
+        />
+        
+        <Select
+            size="small"
+            displayEmpty
+            value={triggerFilter}
+            onChange={(e) => setTriggerFilter(e.target.value)}
+            startAdornment={<FilterListIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }} />}
+            sx={{ minWidth: 180 }}
+        >
+            <MenuItem value="">All Triggers</MenuItem>
+            <MenuItem value="ISSUE">Issue-Based</MenuItem>
+            <MenuItem value="SCHEDULED">Scheduled</MenuItem>
+            <MenuItem value="MANUAL">Manual Only</MenuItem>
+        </Select>
+
+        <Select
+            size="small"
+            displayEmpty
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{ minWidth: 150 }}
+        >
+            <MenuItem value="">All Statuses</MenuItem>
+            <MenuItem value="true">Active</MenuItem>
+            <MenuItem value="false">Disabled</MenuItem>
+        </Select>
       </Box>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>

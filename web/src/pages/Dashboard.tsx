@@ -27,7 +27,9 @@ import {
   Alert,
   Select,
   MenuItem,
-  TablePagination
+  TablePagination,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -40,6 +42,8 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { useTenant } from '../context/TenantContext';
 import {
   BarChart,
@@ -252,6 +256,8 @@ export default function Dashboard() {
   const [totalJobs, setTotalJobs] = useState(0);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [settings, setSettings] = useState<{key: string, value: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [rerunTriggered, setRerunTriggered] = useState(false);
@@ -268,7 +274,7 @@ export default function Dashboard() {
 
         const [statsRes, jobsRes, settingsRes] = await Promise.all([
             client.get(statsUrl, { headers }),
-            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}`, { headers }),
+            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}&search=${search}&status=${statusFilter}`, { headers }),
             client.get('/settings')
         ]);
 
@@ -305,7 +311,7 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => clearInterval(interval);
-  }, [page, rowsPerPage, selectedTenant]);
+  }, [page, rowsPerPage, selectedTenant, search, statusFilter]);
 
   if (loading || !stats) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
@@ -460,9 +466,50 @@ export default function Dashboard() {
           </Grid>
       </Grid>
 
-      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>
-          {selectedTenant === 0 ? 'Recent Global Activity' : 'Tenant Activity'}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 2, mt: 6 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            {selectedTenant === 0 ? 'Recent Global Activity' : 'Tenant Activity'}
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+                size="small"
+                placeholder="Search Issue ID or Workflow..."
+                value={search}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(0);
+                }}
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <SearchIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                    ),
+                }}
+                sx={{ width: 300 }}
+            />
+            
+            <Select
+                size="small"
+                displayEmpty
+                value={statusFilter}
+                onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(0);
+                }}
+                startAdornment={<FilterListIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }} />}
+                sx={{ minWidth: 150 }}
+            >
+                <MenuItem value="">All Statuses</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="failed">Failed</MenuItem>
+                <MenuItem value="running">Running</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+            </Select>
+        </Box>
+      </Box>
+
       <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <TableContainer>
             <Table aria-label="collapsible table">
