@@ -384,11 +384,14 @@ func GetJobs(c *gin.Context) {
     var total int64
     tenantID := tenancy.ResolveTenantID(c)
 
-    countQuery := database.DB.Model(&database.Job{}).Joins("Workflow")
-    dataQuery := database.DB.Preload("Tenant").Preload("Workflow").Joins("Workflow").Order("jobs.created_at desc").Limit(pageSize).Offset(offset)
+    // Base queries
+    countQuery := database.DB.Model(&database.Job{})
+    // Use Joins("Workflow") for dataQuery to allow sorting and filtering by workflow fields
+    // This also preloads Workflow into the Job struct
+    dataQuery := database.DB.Preload("Tenant").Joins("Workflow").Order("jobs.created_at desc").Limit(pageSize).Offset(offset)
 
     if tenancy.IsMultiTenant && tenantID == 0 {
-        // Global view
+        // Global view - no extra filtering
     } else {
         countQuery = countQuery.Where("jobs.tenant_id = ?", tenantID)
         dataQuery = dataQuery.Where("jobs.tenant_id = ?", tenantID)
@@ -397,7 +400,8 @@ func GetJobs(c *gin.Context) {
     if search != "" {
         searchTerm := "%" + search + "%"
         filter := "jobs.authmind_issue_id LIKE ? OR Workflow.name LIKE ?"
-        countQuery = countQuery.Where(filter, searchTerm, searchTerm)
+        // countQuery needs the Join to filter by Workflow.name
+        countQuery = countQuery.Joins("Workflow").Where(filter, searchTerm, searchTerm)
         dataQuery = dataQuery.Where(filter, searchTerm, searchTerm)
     }
 
