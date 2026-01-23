@@ -176,6 +176,11 @@ type JobLog struct {
 	Timestamp time.Time `json:"timestamp"`
 	Level     string    `json:"level"` // "INFO", "ERROR"
 	Message   string    `json:"message"`
+    
+    // Structured Logging Fields
+    StepName     string `json:"step_name"`
+    StatusCode   int    `json:"status_code"`
+    ResponseBody string `json:"response_body"`
 }
 
 // ProcessedEvent tracks every event seen by the system for throughput metrics

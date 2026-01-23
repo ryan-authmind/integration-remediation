@@ -85,6 +85,9 @@ interface JobLog {
     timestamp: string;
     level: string;
     message: string;
+    step_name: string;
+    status_code: number;
+    response_body: string;
 }
 
 interface Job {
@@ -135,13 +138,8 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
 
   const getLogStatusColor = (log: JobLog) => {
       if (log.level === 'ERROR') return 'error';
-      const statusMatch = log.message.match(/\(Status: (\d+)\)/);
-      if (statusMatch) {
-          const code = parseInt(statusMatch[1]);
-          if (code >= 400) return 'error';
-          if (code >= 300) return 'warning';
-          return 'success';
-      }
+      if (log.status_code >= 400) return 'error';
+      if (log.status_code >= 300) return 'warning';
       if (log.message.includes('filtered') || log.message.includes('skipped')) return 'warning';
       return 'success';
   };
@@ -244,8 +242,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                     }}>
                         {logs.map((log) => {
                             const status = getLogStatusColor(log);
-                            const mainPart = log.message.split('\nResponse: ')[0];
-                            const cleanTitle = mainPart.split(' (Status: ')[0].trim();
+                            const cleanTitle = log.step_name || 'System';
 
                             return (
                                 <Step key={log.id}>
@@ -344,10 +341,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                             <Box sx={{ mb: 2 }}>
                                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Step Name</Typography>
                                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                                    {(() => {
-                                        const mainPart = selectedLog.message.split('\nResponse: ')[0];
-                                        return mainPart.split(' (Status: ')[0].trim();
-                                    })()}
+                                    {selectedLog.step_name || 'System Process'}
                                 </Typography>
                             </Box>
                             
@@ -355,14 +349,11 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                 <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Execution Status</Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Chip 
-                                        label={(() => {
-                                            const statusMatch = selectedLog.message.match(/\(Status: (\d+)\)/);
-                                            return statusMatch ? `HTTP ${statusMatch[1]}` : selectedLog.level;
-                                        })()} 
+                                        label={selectedLog.status_code > 0 ? `HTTP ${selectedLog.status_code}` : selectedLog.level} 
                                         color={getLogStatusColor(selectedLog) === 'error' ? 'error' : getLogStatusColor(selectedLog) === 'warning' ? 'warning' : 'success'} 
                                         sx={{ fontWeight: 700 }}
                                     />
-                                    {selectedLog.message.includes('\nResponse: ') && (
+                                    {selectedLog.response_body && (
                                         <Chip label="Response Captured" variant="outlined" size="small" sx={{ fontWeight: 600 }} />
                                     )}
                                 </Box>
@@ -391,16 +382,13 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                     fontSize: '0.85rem'
                                 }}>
                                     {(() => {
-                                        const parts = selectedLog.message.split('\nResponse: ');
-                                        if (parts.length > 1) {
-                                            const responsePart = parts[1];
+                                        if (selectedLog.response_body) {
                                             try {
-                                                return JSON.stringify(JSON.parse(responsePart), null, 2);
+                                                return JSON.stringify(JSON.parse(selectedLog.response_body), null, 2);
                                             } catch (e) {
-                                                return responsePart;
+                                                return selectedLog.response_body;
                                             }
                                         }
-                                        // If no Response: part, show the whole thing but maybe it's just the step name + status
                                         return selectedLog.message;
                                     })()}
                                 </Typography>
