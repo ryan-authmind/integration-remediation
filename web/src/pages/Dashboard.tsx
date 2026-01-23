@@ -29,11 +29,15 @@ import {
   Stepper,
   Step,
   StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  StepIconProps,
   Drawer,
   Divider,
   Stack,
   alpha,
-  useTheme
+  useTheme,
+  styled
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -99,6 +103,81 @@ interface Job {
     status: string;
     authmind_issue_id: string;
     trigger_context: string; 
+}
+
+const FlowConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.alternativeLabel}`]: {
+    top: 22,
+  },
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.primary.main,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.success.main,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    borderColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#eaeaf0',
+    borderTopWidth: 3,
+    borderRadius: 1,
+  },
+}));
+
+const FlowStepIconRoot = styled('div')<{
+  ownerState: { active?: boolean; completed?: boolean; status: string };
+}>(({ theme, ownerState }) => ({
+  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 44,
+  height: 44,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  border: '3px solid transparent',
+  transition: 'all 0.2s ease-in-out',
+  cursor: 'pointer',
+  ...(ownerState.status === 'success' && {
+    backgroundColor: theme.palette.success.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.success.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.success.main, 0.8)}`,
+    }
+  }),
+  ...(ownerState.status === 'warning' && {
+    backgroundColor: theme.palette.warning.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.warning.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.warning.main, 0.8)}`,
+    }
+  }),
+  ...(ownerState.status === 'error' && {
+    backgroundColor: theme.palette.error.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.error.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.error.main, 0.8)}`,
+    }
+  }),
+}));
+
+function FlowStepIcon(props: StepIconProps & { status: string }) {
+  const { active, completed, className, status } = props;
+
+  const icons: { [index: string]: React.ReactElement } = {
+    success: <CheckCircleIcon />,
+    warning: <InfoIcon />,
+    error: <ErrorIcon />,
+  };
+
+  return (
+    <FlowStepIconRoot ownerState={{ completed, active, status }} className={className}>
+      {icons[status] || <SyncIcon />}
+    </FlowStepIconRoot>
+  );
 }
 
 function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants: Tenant[] }) {
@@ -220,26 +299,8 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
               ) : logs.length === 0 ? (
                   <Typography variant="caption" sx={{ ml: 4, fontStyle: 'italic' }}>No detailed logs available for this job.</Typography>
               ) : (
-                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2, pt: 6 }}>
-                    <Stepper nonLinear sx={{ 
-                        '& .MuiStepLabel-root': {
-                            flexDirection: 'column-reverse'
-                        },
-                        '& .MuiStepLabel-label': {
-                            mt: 0,
-                            mb: 1,
-                            fontWeight: 700,
-                            fontSize: '0.75rem'
-                        },
-                        '& .MuiStepConnector-root': {
-                            top: 32, 
-                            left: 'calc(-50% + 20px)',
-                            right: 'calc(50% + 20px)'
-                        },
-                        '& .MuiStepConnector-line': {
-                            borderColor: 'divider'
-                        }
-                    }}>
+                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2, pt: 8 }}>
+                    <Stepper alternativeLabel connector={<FlowConnector />}>
                         {logs.map((log) => {
                             const status = getLogStatusColor(log);
                             const cleanTitle = log.step_name || 'System';
@@ -248,25 +309,22 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                 <Step key={log.id}>
                                     <StepLabel
                                         onClick={() => handleLogClick(log)}
-                                        icon={
-                                            <IconButton 
-                                                size="small" 
-                                                sx={{ 
-                                                    p: 0,
-                                                    color: `${status}.main`,
-                                                    bgcolor: 'background.paper',
-                                                    border: '2px solid',
-                                                    borderColor: `${status}.main`,
-                                                    '&:hover': { bgcolor: 'action.hover' }
-                                                }}
-                                            >
-                                                {status === 'error' ? <ErrorIcon fontSize="small" /> : status === 'warning' ? <InfoIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
-                                            </IconButton>
-                                        }
+                                        StepIconComponent={(props) => <FlowStepIcon {...props} status={status} />}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            '& .MuiStepLabel-label': {
+                                                position: 'absolute',
+                                                top: -45,
+                                                width: '100%',
+                                                fontWeight: 700,
+                                                fontSize: '0.75rem',
+                                                color: 'text.primary',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em'
+                                            }
+                                        }}
                                     >
-                                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {cleanTitle}
-                                        </Typography>
+                                        {cleanTitle}
                                     </StepLabel>
                                 </Step>
                             );
