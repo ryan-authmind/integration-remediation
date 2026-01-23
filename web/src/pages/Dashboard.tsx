@@ -18,10 +18,6 @@ import {
   CircularProgress,
   IconButton,
   Collapse,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   Tooltip,
   Snackbar,
   Alert,
@@ -29,7 +25,13 @@ import {
   MenuItem,
   TablePagination,
   TextField,
-  InputAdornment
+  InputAdornment,
+  Stepper,
+  Step,
+  StepLabel,
+  Drawer,
+  Divider,
+  Stack
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -44,6 +46,9 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import { useTenant } from '../context/TenantContext';
 import {
   BarChart,
@@ -97,6 +102,8 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<JobLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<JobLog | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleExpand = async () => {
     const nextState = !open;
@@ -122,6 +129,24 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
       } catch (err) {
           console.error("Rerun failed", err);
       }
+  };
+
+  const getLogStatusColor = (log: JobLog) => {
+      if (log.level === 'ERROR') return 'error';
+      const statusMatch = log.message.match(/\(Status: (\d+)\)/);
+      if (statusMatch) {
+          const code = parseInt(statusMatch[1]);
+          if (code >= 400) return 'error';
+          if (code >= 300) return 'warning';
+          return 'success';
+      }
+      if (log.message.includes('filtered') || log.message.includes('skipped')) return 'warning';
+      return 'success';
+  };
+
+  const handleLogClick = (log: JobLog) => {
+      setSelectedLog(log);
+      setDrawerOpen(true);
   };
 
   let playbookName = 'N/A';
@@ -185,67 +210,141 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={isGlobal ? 8 : 7}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 2 }}>
-              <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TaskAltIcon fontSize="small" color="primary" /> Execution Audit Trail
+            <Box sx={{ margin: 3 }}>
+              <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <TaskAltIcon fontSize="small" color="primary" /> Execution Flow
               </Typography>
+              
               {loading ? (
                   <CircularProgress size={20} sx={{ m: 2 }} />
               ) : logs.length === 0 ? (
                   <Typography variant="caption" sx={{ ml: 4, fontStyle: 'italic' }}>No detailed logs available for this job.</Typography>
               ) : (
-                <List dense sx={{ bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                  {logs.map((log) => (
-                    <ListItem key={log.id} divider>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {log.level === 'ERROR' ? <ErrorIcon color="error" sx={{ fontSize: 16 }} /> : <InfoIcon color="info" sx={{ fontSize: 16 }} />}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={
-                          (() => {
+                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2 }}>
+                    <Stepper alternativeLabel nonLinear>
+                        {logs.map((log) => {
+                            const status = getLogStatusColor(log);
                             const hasResponse = log.message.includes('\nResponse: ');
                             const mainPart = hasResponse ? log.message.split('\nResponse: ')[0] : log.message;
-                            const responsePart = hasResponse ? log.message.split('\nResponse: ')[1] : null;
                             const statusMatch = mainPart.match(/\(Status: (\d+)\)/);
                             const statusCode = statusMatch ? statusMatch[1] : null;
-                            const cleanMainPart = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
+                            const cleanTitle = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
 
                             return (
-                              <>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: log.level === 'ERROR' ? 700 : 500 }}>
-                                    {cleanMainPart}
-                                  </Typography>
-                                  {statusCode && (
-                                    <Chip 
-                                      label={statusCode} 
-                                      size="small" 
-                                      variant="outlined"
-                                      color={parseInt(statusCode) >= 400 ? "error" : "success"}
-                                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, borderRadius: 0.5 }}
-                                    />
-                                  )}
-                                </Box>
-                                {responsePart && (
-                                  <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'background.paper', borderRadius: 1, fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid', borderColor: 'divider', color: 'primary.main', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                    {responsePart}
-                                  </Box>
-                                )}
-                              </>
+                                <Step key={log.id} completed={status === 'success'}>
+                                    <StepLabel
+                                        onClick={() => handleLogClick(log)}
+                                        icon={
+                                            <IconButton 
+                                                size="small" 
+                                                sx={{ 
+                                                    p: 0,
+                                                    color: `${status}.main`,
+                                                    bgcolor: 'background.paper',
+                                                    border: '2px solid',
+                                                    borderColor: `${status}.main`,
+                                                    '&:hover': { bgcolor: 'action.hover' }
+                                                }}
+                                            >
+                                                {status === 'error' ? <ErrorIcon /> : status === 'warning' ? <InfoIcon /> : <CheckCircleIcon />}
+                                            </IconButton>
+                                        }
+                                    >
+                                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {cleanTitle}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(log.timestamp).toLocaleTimeString()}
+                                        </Typography>
+                                    </StepLabel>
+                                </Step>
                             );
-                          })()
-                        }
-                        secondary={new Date(log.timestamp).toLocaleTimeString()}
-                        primaryTypographyProps={{ component: 'div', variant: 'body2', sx: { whiteSpace: 'pre-wrap' } }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                        })}
+                    </Stepper>
+                </Box>
               )}
             </Box>
           </Collapse>
         </TableCell>
       </TableRow>
+
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 500 }, p: 0 } }}
+      >
+        {selectedLog && (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'action.hover' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TerminalIcon color="primary" /> Log Details
+                    </Typography>
+                    <IconButton onClick={() => setDrawerOpen(false)}><CloseIcon /></IconButton>
+                </Box>
+                <Divider />
+                <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
+                    <Stack spacing={3}>
+                        <Box>
+                            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Message</Typography>
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', mt: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'pre-wrap' }}>
+                                    {(() => {
+                                        const parts = selectedLog.message.split('\nResponse: ');
+                                        return parts[0];
+                                    })()}
+                                </Typography>
+                            </Paper>
+                        </Box>
+
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Level</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                    <Chip 
+                                        label={selectedLog.level} 
+                                        color={getLogStatusColor(selectedLog) === 'error' ? 'error' : 'info'} 
+                                        size="small" 
+                                        sx={{ fontWeight: 700 }}
+                                    />
+                                </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Timestamp</Typography>
+                                <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                    <AccessTimeIcon fontSize="inherit" color="disabled" /> {new Date(selectedLog.timestamp).toLocaleString()}
+                                </Typography>
+                            </Grid>
+                        </Grid>
+
+                        {selectedLog.message.includes('\nResponse: ') && (
+                            <Box>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>Response Payload</Typography>
+                                <Paper variant="outlined" sx={{ mt: 1, bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, overflowX: 'auto' }}>
+                                    <pre style={{ margin: 0, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                                        {(() => {
+                                            const jsonStr = selectedLog.message.split('\nResponse: ')[1];
+                                            try {
+                                                return JSON.stringify(JSON.parse(jsonStr), null, 2);
+                                            } catch (e) {
+                                                return jsonStr;
+                                            }
+                                        })()}
+                                    </pre>
+                                </Paper>
+                            </Box>
+                        )}
+                    </Stack>
+                </Box>
+                <Divider />
+                <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.disabled">
+                        Job Execution Log ID: {selectedLog.id}
+                    </Typography>
+                </Box>
+            </Box>
+        )}
+      </Drawer>
     </>
   );
 }
