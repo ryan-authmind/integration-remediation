@@ -31,7 +31,9 @@ import {
   StepLabel,
   Drawer,
   Divider,
-  Stack
+  Stack,
+  alpha,
+  useTheme
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -103,6 +105,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<JobLog | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const theme = useTheme();
 
   const handleExpand = async () => {
     const nextState = !open;
@@ -219,17 +222,24 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
               ) : logs.length === 0 ? (
                   <Typography variant="caption" sx={{ ml: 4, fontStyle: 'italic' }}>No detailed logs available for this job.</Typography>
               ) : (
-                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2, pt: 4 }}>
+                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2, pt: 6 }}>
                     <Stepper nonLinear sx={{ 
-                        '& .MuiStepLabel-labelContainer': {
-                            position: 'absolute',
-                            top: -30,
-                            width: '100%',
-                            textAlign: 'center',
-                            left: 0
-                        },
                         '& .MuiStepLabel-root': {
-                            flexDirection: 'column'
+                            flexDirection: 'column-reverse'
+                        },
+                        '& .MuiStepLabel-label': {
+                            mt: 0,
+                            mb: 1,
+                            fontWeight: 700,
+                            fontSize: '0.75rem'
+                        },
+                        '& .MuiStepConnector-root': {
+                            top: 32, // Adjust based on icon size and label height
+                            left: 'calc(-50% + 20px)',
+                            right: 'calc(50% + 20px)'
+                        },
+                        '& .MuiStepConnector-line': {
+                            borderColor: 'divider'
                         }
                     }}>
                         {logs.map((log) => {
@@ -241,7 +251,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                             const cleanTitle = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
 
                             return (
-                                <Step key={log.id} completed={status === 'success'}>
+                                <Step key={log.id}>
                                     <StepLabel
                                         onClick={() => handleLogClick(log)}
                                         icon={
@@ -256,7 +266,7 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                                                     '&:hover': { bgcolor: 'action.hover' }
                                                 }}
                                             >
-                                                {status === 'error' ? <ErrorIcon /> : status === 'warning' ? <InfoIcon /> : <CheckCircleIcon />}
+                                                {status === 'error' ? <ErrorIcon fontSize="small" /> : status === 'warning' ? <InfoIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
                                             </IconButton>
                                         }
                                     >
@@ -293,36 +303,44 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
                 <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
                     <Stack spacing={3}>
                         {/* Status Header */}
-                        <Paper variant="outlined" sx={{ 
-                            p: 2, 
-                            borderRadius: 2, 
-                            bgcolor: `${getLogStatusColor(selectedLog)}.lighter`,
-                            borderColor: `${getLogStatusColor(selectedLog)}.main`,
-                            borderWidth: 2,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 2
-                        }}>
-                            <Box sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                bgcolor: `${getLogStatusColor(selectedLog)}.main`,
-                                color: 'white',
-                                borderRadius: '50%',
-                                p: 1
-                            }}>
-                                {getLogStatusColor(selectedLog) === 'error' ? <ErrorIcon /> : getLogStatusColor(selectedLog) === 'warning' ? <InfoIcon /> : <CheckCircleIcon />}
-                            </Box>
-                            <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 800, color: `${getLogStatusColor(selectedLog)}.main`, lineHeight: 1 }}>
-                                    {getLogStatusColor(selectedLog).toUpperCase()}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                                    {new Date(selectedLog.timestamp).toLocaleString()}
-                                </Typography>
-                            </Box>
-                        </Paper>
+                        {(() => {
+                            const status = getLogStatusColor(selectedLog);
+                            const statusColor = (theme.palette as any)[status].main;
+                            const bgColor = alpha(statusColor, 0.1);
+
+                            return (
+                                <Paper variant="outlined" sx={{ 
+                                    p: 2, 
+                                    borderRadius: 2, 
+                                    bgcolor: bgColor,
+                                    borderColor: statusColor,
+                                    borderWidth: 2,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 2
+                                }}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        bgcolor: statusColor,
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        p: 1
+                                    }}>
+                                        {status === 'error' ? <ErrorIcon /> : status === 'warning' ? <InfoIcon /> : <CheckCircleIcon />}
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: statusColor, lineHeight: 1 }}>
+                                            {status.toUpperCase()}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                            {new Date(selectedLog.timestamp).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </Paper>
+                            );
+                        })()}
 
                         {/* Identification Info */}
                         <Box sx={{ px: 1 }}>
