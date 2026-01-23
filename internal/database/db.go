@@ -60,8 +60,12 @@ func InitDB(dbPath string) {
 
 	// Run data migrations (e.g. legacy encryption upgrade)
 	if err := MigrateLegacyCredentials(DB); err != nil {
-		log.Printf("[Database] Warning: Data migration failed: %v", err)
+		log.Printf("[Database] Warning: Legacy credentials migration failed: %v", err)
 	}
+
+    if err := MigrateJobLogs(DB); err != nil {
+        log.Printf("[Database] Warning: Job log migration failed: %v", err)
+    }
 
 	log.Println("Database initialized and schema migrated successfully.")
 }

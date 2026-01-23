@@ -3,9 +3,69 @@ package database
 import (
 	"log"
 	"remediation-engine/internal/security"
+    "regexp"
+    "strconv"
+    "strings"
 
 	"gorm.io/gorm"
 )
+
+// MigrateJobLogs backfills structured data from existing message strings
+func MigrateJobLogs(db *gorm.DB) error {
+    log.Println("[Database] Checking for unstructured job logs...")
+
+    var logs []JobLog
+    // Find logs that have a message but haven't been structured yet
+    err := db.Where("message <> '' AND step_name = '' AND status_code = 0").Find(&logs).Error
+    if err != nil {
+        return err
+    }
+
+    if len(logs) == 0 {
+        return nil
+    }
+
+    log.Printf("[Database] Migrating %d job logs to structured format...", len(logs))
+
+    // Regex patterns for parsing legacy messages
+    // Example: "Step 0 (Slack Notification) completed successfully (Status: 200)"
+    stepNameRegex := regexp.MustCompile(`\((.*?)\)`)
+    statusCodeRegex := regexp.MustCompile(`\(Status: (\d+)\)`)
+
+    for i := range logs {
+        l := &logs[i]
+        
+        // 1. Extract Step Name
+        nameMatch := stepNameRegex.FindStringSubmatch(l.Message)
+        if len(nameMatch) > 1 {
+            l.StepName = nameMatch[1]
+        }
+
+        // 2. Extract Status Code
+        codeMatch := statusCodeRegex.FindStringSubmatch(l.Message)
+        if len(codeMatch) > 1 {
+            code, _ := strconv.Atoi(codeMatch[1])
+            l.StatusCode = code
+        }
+
+        // 3. Extract Response Body
+        if strings.Contains(l.Message, "\nResponse: ") {
+            parts := strings.Split(l.Message, "\nResponse: ")
+            l.ResponseBody = parts[1]
+        } else if strings.Contains(l.Message, "\nResponse Body: ") {
+             parts := strings.Split(l.Message, "\nResponse Body: ")
+             l.ResponseBody = parts[1]
+        }
+
+        // Save back
+        if err := db.Save(l).Error; err != nil {
+            log.Printf("Failed to migrate log %d: %v", l.ID, err)
+        }
+    }
+
+    log.Println("[Database] Job log migration complete.")
+    return nil
+}
 
 // MigrateLegacyCredentials upgrades legacy encrypted data to the new format
 func MigrateLegacyCredentials(db *gorm.DB) error {
