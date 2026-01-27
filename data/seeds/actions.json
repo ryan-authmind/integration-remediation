@@ -136,29 +136,20 @@
   },
   {
     "tenant_id": 1,
-    "name": "SSF: RISC Account Compromised",
+    "name": "SSF: RISC Event",
     "vendor": "Generic",
     "integration_name": "Generic SSF Receiver",
     "method": "POST",
     "path_template": "",
-    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/risc/event-type/account-compromised\": {\n      \"risk_score\": \"{{.Risk}}\",\n      \"reason\": \"{{.Title | jsonescape}}\"\n    }\n  }\n}"
+    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"{{.IssueType | ssf_event_type}}\": {\n      \"subject\": {\n        \"format\": \"email\",\n        \"email\": \"{{.UserEmail}}\"\n      },\n      \"reason_admin\": \"AuthMind Detected: {{.IssueType | jsonescape}}\",\n      \"risk_score\": \"{{.Risk}}\"\n    }\n  }\n}"
   },
   {
     "tenant_id": 1,
-    "name": "SSF: CAEP Session Revoked",
+    "name": "SSF: CAEP Event",
     "vendor": "Generic",
     "integration_name": "Generic SSF Receiver",
     "method": "POST",
     "path_template": "",
-    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/caep/event-type/session-revoked\": {\n      \"initiated_by\": \"policy\",\n      \"reason_admin\": \"AuthMind Remediation: {{.IssueID}}\"\n    }\n  }\n}"
-  },
-  {
-    "tenant_id": 1,
-    "name": "SSF: CAEP Credential Change",
-    "vendor": "Generic",
-    "integration_name": "Generic SSF Receiver",
-    "method": "POST",
-    "path_template": "",
-    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/caep/event-type/credential-change-required\": {\n      \"change_type\": \"password\",\n      \"reason_admin\": \"Compromise Detected\"\n    }\n  }\n}"
+    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"{{.IssueType | ssf_event_type}}\": {\n      \"initiated_by\": \"policy\",\n      \"reason_admin\": \"AuthMind Remediation: {{.IssueID}}\"\n    }\n  }\n}"
   }
 ]
