@@ -88,7 +88,11 @@ export default function Integrations() {
       client_secret: '',
       token_endpoint: '',
       rotation_interval: 0,
-      polling_interval: 60
+      polling_interval: 60,
+      // SSF Specific
+      issuer: '',
+      key_id: '',
+      private_key: ''
   });
 
   const [notification, setNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
@@ -138,14 +142,17 @@ export default function Integrations() {
           client_secret: '',
           token_endpoint: '',
           rotation_interval: 0,
-          polling_interval: 60
+          polling_interval: 60,
+          issuer: '',
+          key_id: '',
+          private_key: ''
       });
       setOpen(true);
   };
 
-  const handleEditOpen = (integration: Integration) => {
+    const handleEditOpen = (integration: Integration) => {
     setSelected(integration);
-    let creds = { username: '', password: '', token: '', api_key: '', header_name: '', client_id: '', client_secret: '' };
+    let creds = { username: '', password: '', token: '', api_key: '', header_name: '', client_id: '', client_secret: '', issuer: '', key_id: '', private_key: '' };
     try {
         creds = JSON.parse(integration.credentials);
     } catch (e) {}
@@ -163,7 +170,10 @@ export default function Integrations() {
         client_secret: creds.client_secret || '',
         token_endpoint: integration.token_endpoint || '',
         rotation_interval: integration.rotation_interval_days || 0,
-        polling_interval: integration.polling_interval || 60
+        polling_interval: integration.polling_interval || 60,
+        issuer: creds.issuer || '',
+        key_id: creds.key_id || '',
+        private_key: creds.private_key || ''
     });
     setOpen(true);
   };
@@ -176,7 +186,11 @@ export default function Integrations() {
         api_key: formData.token, // Map token to api_key for backend consistency
         header_name: formData.apiKeyHeader,
         client_id: formData.client_id,
-        client_secret: formData.client_secret
+        client_secret: formData.client_secret,
+        // SSF
+        issuer: formData.issuer,
+        key_id: formData.key_id,
+        private_key: formData.private_key
     });
 
     const payload = {
@@ -416,6 +430,7 @@ export default function Integrations() {
                             onChange={(e) => setFormData({...formData, type: e.target.value})}
                         >
                             <MenuItem value="REST">REST API</MenuItem>
+                            <MenuItem value="SSF">Shared Signals (SSF)</MenuItem>
                             <MenuItem value="WINRM">WinRM (Windows)</MenuItem>
                             <MenuItem value="EMAIL">Email Service</MenuItem>
                         </Select>
@@ -445,6 +460,48 @@ export default function Integrations() {
                         </Select>
                     </FormControl>
                 </Grid>
+
+                {formData.type === 'SSF' && (
+                    <>
+                        <Grid item xs={12}>
+                            <Divider sx={{ my: 1 }}>
+                                <Chip label="SSF Configuration" size="small" />
+                            </Divider>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="Issuer (iss)" 
+                                fullWidth 
+                                placeholder="Defaults to Integration Name"
+                                value={formData.issuer}
+                                onChange={(e) => setFormData({...formData, issuer: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="Key ID (kid)" 
+                                fullWidth 
+                                value={formData.key_id}
+                                onChange={(e) => setFormData({...formData, key_id: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField 
+                                label="RSA Private Key (PEM)" 
+                                multiline
+                                rows={4}
+                                fullWidth 
+                                value={formData.private_key}
+                                onChange={(e) => setFormData({...formData, private_key: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Typography variant="caption" color="text.secondary">
+                                * SSF will sign payloads using this key. You can also configure Transport Authentication below (e.g. Bearer Token).
+                            </Typography>
+                        </Grid>
+                    </>
+                )}
 
                 {formData.auth_type === 'oauth2' && (
                     <>
