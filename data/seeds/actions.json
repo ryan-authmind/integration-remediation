@@ -133,5 +133,32 @@
     "method": "POST",
     "path_template": "/createCertificationCampaign",
     "body_template": "{\n  \"campaignname\": \"AuthMind Remediation - {{.IssueID}}\",\n  \"type\": \"User\",\n  \"userlist\": \"{{.UserEmail}}\"\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SSF: RISC Account Compromised",
+    "vendor": "Generic",
+    "integration_name": "Generic SSF Receiver",
+    "method": "POST",
+    "path_template": "",
+    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/risc/event-type/account-compromised\": {\n      \"risk_score\": \"{{.Risk}}\",\n      \"reason\": \"{{.Title | jsonescape}}\"\n    }\n  }\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SSF: CAEP Session Revoked",
+    "vendor": "Generic",
+    "integration_name": "Generic SSF Receiver",
+    "method": "POST",
+    "path_template": "",
+    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/caep/event-type/session-revoked\": {\n      \"initiated_by\": \"policy\",\n      \"reason_admin\": \"AuthMind Remediation: {{.IssueID}}\"\n    }\n  }\n}"
+  },
+  {
+    "tenant_id": 1,
+    "name": "SSF: CAEP Credential Change",
+    "vendor": "Generic",
+    "integration_name": "Generic SSF Receiver",
+    "method": "POST",
+    "path_template": "",
+    "body_template": "{\n  \"subject\": {\n    \"format\": \"email\",\n    \"email\": \"{{.UserEmail}}\"\n  },\n  \"events\": {\n    \"https://schemas.openid.net/secevent/caep/event-type/credential-change-required\": {\n      \"change_type\": \"password\",\n      \"reason_admin\": \"Compromise Detected\"\n    }\n  }\n}"
   }
 ]

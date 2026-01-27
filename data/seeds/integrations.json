@@ -91,5 +91,14 @@
     "auth_type": "apikey",
     "credentials": "{\"header_name\":\"X-API-Key\",\"api_key\":\"your-key\"}",
     "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Generic SSF Receiver",
+    "type": "SSF",
+    "base_url": "https://receiver.example.com/risk/events",
+    "auth_type": "bearer",
+    "credentials": "{\"token\":\"transport-token\",\"key_id\":\"key-1\",\"private_key\":\"-----BEGIN RSA PRIVATE KEY-----\\nMIIEpAIBAAKCAQEAp9vvoACEuvoC+/mB9CfwbCKnWg8qR4NNhPu34DfQsXhBAoqk\\nJOTvfXCZCr6r6PKS/gLIOdg46h2XouvVHKniQcsaA68iprtP7T2vdS6sP/NzNTph\\neClGVdTLDrqOi/XVHU2Yce7r3FKKE/QfZ6NUQ05ZjQsXYT42oZ2QtTOfa+eHbwPJ\\nXjveARM7CTrevpqjxCVczzaVE/DkQShPLY0SkEtWt7kwIKswkze75jnRFQHVQGbQ\\n74x8se/dZc/YJe5DeCew9+Q8eRoccex3jQh/X7T6lul1/6m2CH2QDEwLdSnysJsl\\nROmqISR6FwcZcdzICjGM9Oxxy2ZEZSB5hLEMfwIDAQABAoIBAQCOuFdzaT1xZKUo\\n7KnrmBG5P3WfAwnlp+Q/T261u387hY1wxcRugiCGPThChH/SHn2Qb3kihY9Orz6A\\njZezOVZgrnk97Ki/rr90bWBDeB2IekvYU/0Pl7hvve+wZDpTEf/TXGhjZssvlxZD\\nhOs2yQ4Z9AH8BBQq4CS/ISMqjevcZ6ygkDdIFKO+xpIh/peTZBdX3LzSo4qjWk3c\\nIKbk+vd5V1PZWyKNgalLmPtchWwjholqiep6erH2UoJ4pS5w3tnZxUwR6ecOSmiz\\nuOkYaCtTl8XRo0E5jBK5z3u3C/8Rc1tflcQGmEYSTeZCSEV+EQ0U52QcZRkgAfyk\\nkfxrpFZRAoGBANDoQWpqM01R4kwMuic5cPtOU/QjLO66gdBFdfwfNnI7jpuOuutm\\nG3AN5DD8HuhZy4HDJlOHkUWYpmql7PlWW9DcZ7iLjJOwLwVuQJDBmmK5Wk9yb4tP\\nkHT4lZz/1dLxzHIKft1e48pF1Vxu83TTRI8oSVmQ2MRo97R4i9x8DG5TAoGBAM2y\\n2dITAhaNyiNP5N+JOb5iVovzDcBNfAvunnj/NKLUL9RhHKVewi8SGgS1vt/VHt9x\\ncEibfuSntxmNQAlVt8I99TfkQIljDrDPdIcuu7poZCm1Cu820GXC7JBvgXLTYrx2\\nJDP+oNgZVNQXwpoNHG4Jt/Av+1uMAS39qLQ8giulAoGBAJ6K9UJWkNKoRy7iJdCo\\n5lbCrjJFE8+lmek/HfiWk5KEIolp+++0kTQsRrbqUGaT5z92pDqWUyjXXczoWf0s\\njgfnjYvf1HMtLbJYZwW0+H7eHmzW81JtsrsjASCihFtQCJGv53IHlqam8vLwfTF3\\nOLvQnkIsDGabJwo+xh4xwpljAoGAIxWARW5sisBAW+mClgXnzWska9ZW4BfXMonO\\nicCtj6A1UDoIEsSoxjKGMYt2NOM60s2cYyXybLmWZ0tKQs1V/FFpA9FwmH5GwS2B\\nKJV1+4NWoi544Pgub0zh4HjEUXtweciEwEGL2Y/oggxTascVtEcAEn18l863XMrI\\n/YTchukCgYBMWAmeu9/ycBfpSOnLaVFoGIbX7sjMZy0C93thU7qaNl4I6o5Ik3Ha\\nMu9MvSdbbz0/eR5ludWK/tkrY+0dw/fHYhUfxWpsotFx6uW1ITcYtybwxpZjJqUy\\nfE8FBsLpOfd7hFZsO30N58s+t/C5WWRCz8bdhrhoQcEEU34J5ePMBQ==\\n-----END RSA PRIVATE KEY-----\"}",
+    "enabled": true
   }
 ]
