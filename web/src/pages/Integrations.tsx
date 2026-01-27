@@ -457,11 +457,12 @@ export default function Integrations() {
                             <MenuItem value="apikey">Custom Header (API Key)</MenuItem>
                             <MenuItem value="ntlm">NTLM (Windows)</MenuItem>
                             <MenuItem value="oauth2">OAuth2 Client Credentials</MenuItem>
+                            <MenuItem value="ssf">SSF Signature (RSA)</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
 
-                {formData.type === 'SSF' && (
+                {formData.auth_type === 'ssf' && (
                     <>
                         <Grid item xs={12}>
                             <Divider sx={{ my: 1 }}>
@@ -497,7 +498,7 @@ export default function Integrations() {
                         </Grid>
                         <Grid item xs={12}>
                             <Typography variant="caption" color="text.secondary">
-                                * SSF will sign payloads using this key. You can also configure Transport Authentication below (e.g. Bearer Token).
+                                * The system will sign the SET payload using this key. Note: Transport authentication is disabled when using SSF Signature mode.
                             </Typography>
                         </Grid>
                     </>
