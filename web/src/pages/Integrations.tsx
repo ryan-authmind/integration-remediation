@@ -427,7 +427,14 @@ export default function Integrations() {
                         <Select
                             value={formData.type}
                             label="Connection Type"
-                            onChange={(e) => setFormData({...formData, type: e.target.value})}
+                            onChange={(e) => {
+                                const newType = e.target.value;
+                                let newAuthType = formData.auth_type;
+                                if (newType === 'SSF') {
+                                    newAuthType = 'ssf';
+                                }
+                                setFormData({...formData, type: newType, auth_type: newAuthType});
+                            }}
                         >
                             <MenuItem value="REST">REST API</MenuItem>
                             <MenuItem value="SSF">Shared Signals (SSF)</MenuItem>
