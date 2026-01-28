@@ -69,7 +69,7 @@ func Login(c *gin.Context) {
 	}
 
     // Log the login event
-    LogAudit(c, user.ID, 0, "LOGIN", "USER", string(rune(user.ID)), "User logged in via local provider")
+    LogAudit(c, user.ID, 0, "LOGIN", "USER", fmt.Sprintf("%d", user.ID), "User logged in via local provider")
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,

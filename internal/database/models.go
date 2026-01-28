@@ -238,10 +238,10 @@ type AuditLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Timestamp time.Time `gorm:"index" json:"timestamp"`
 
-	UserID uint `gorm:"index" json:"user_id"`
-	User   User `gorm:"foreignKey:UserID" json:"user"`
+	UserID *uint `gorm:"index" json:"user_id"`
+	User   User  `gorm:"foreignKey:UserID" json:"user"`
 
-	TenantID uint   `gorm:"index" json:"tenant_id"`
+	TenantID *uint  `gorm:"index" json:"tenant_id"`
 	Tenant   Tenant `gorm:"foreignKey:TenantID" json:"tenant"`
 
 	Action   string `json:"action"`   // "CREATE", "UPDATE", "DELETE", "EXECUTE", "LOGIN"
