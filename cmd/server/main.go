@@ -139,20 +139,36 @@ func main() {
 	if _, err := os.Stat(distPath + "/index.html"); err != nil {
 		distPath = "./web/dist"
 	}
+	log.Printf("[Server] Serving frontend from: %s", distPath)
 
 	r.Static("/assets", distPath+"/assets")
+	r.Static("/vendors", distPath+"/vendors")
 
 	// Fallback for React Router (Single Page App) and root-level static files
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		// Check if the file exists in the dist directory
+
+		// 1. If it's an API route that didn't match, return a real 404
+		if strings.HasPrefix(path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API route not found"})
+			return
+		}
+
+		// 2. Check if the file exists in the dist directory (e.g. /favicon.ico, /logo.png)
 		fullPath := distPath + path
-		if _, err := os.Stat(fullPath); err == nil && path != "/" {
+		fileInfo, err := os.Stat(fullPath)
+		if err == nil && !fileInfo.IsDir() {
 			c.File(fullPath)
 			return
 		}
-		// Otherwise serve index.html for SPA
-		c.File(distPath + "/index.html")
+
+		// 3. Otherwise, serve index.html for all other routes to support React Router
+		indexPath := distPath + "/index.html"
+		if _, err := os.Stat(indexPath); err == nil {
+			c.File(indexPath)
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Frontend not built or index.html missing"})
+		}
 	})
 
 	log.Println("Starting Integration & Remediation Engine...")
