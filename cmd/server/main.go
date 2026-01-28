@@ -135,32 +135,43 @@ func main() {
 		}
 	}
 
-	distPath, _ := filepath.Abs("./dist")
-	if _, err := os.Stat(filepath.Join(distPath, "index.html")); err != nil {
+	// Determine the correct path for frontend assets
+	var distPath string
+	if _, err := os.Stat("./dist/index.html"); err == nil {
+		distPath, _ = filepath.Abs("./dist")
+	} else if _, err := os.Stat("./web/dist/index.html"); err == nil {
 		distPath, _ = filepath.Abs("./web/dist")
+	} else {
+		log.Println("[Server] WARNING: Could not find frontend index.html in ./dist or ./web/dist")
+		distPath, _ = filepath.Abs("./dist") // Default
 	}
-	log.Printf("[Server] Resolved frontend assets path: %s", distPath)
+	
+	log.Printf("[Server] Serving frontend from: %s", distPath)
 
-	// 1. Serve specific static files and directories
+	// 1. Static file serving
 	r.Static("/assets", filepath.Join(distPath, "assets"))
 	r.Static("/vendors", filepath.Join(distPath, "vendors"))
 	r.StaticFile("/favicon.ico", filepath.Join(distPath, "favicon.ico"))
 	r.StaticFile("/favicon.png", filepath.Join(distPath, "favicon.png"))
 	r.StaticFile("/logo-darkmode.png", filepath.Join(distPath, "logo-darkmode.png"))
 	r.StaticFile("/authmind-logo-light.png", filepath.Join(distPath, "authmind-logo-light.png"))
-	r.StaticFile("/", filepath.Join(distPath, "index.html"))
 
-	// 2. Main SPA fallback for all other routes
+	// 2. Handle root path explicitly
+	r.GET("/", func(c *gin.Context) {
+		c.File(filepath.Join(distPath, "index.html"))
+	})
+
+	// 3. SPA Fallback for all other routes
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		// API routes should never serve index.html
+		// API routes should return a proper 404
 		if strings.HasPrefix(path, "/api") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API route not found"})
 			return
 		}
 
-		// For everything else, serve index.html to allow React Router to take over
+		// Serve index.html for React Router to handle the route
 		c.File(filepath.Join(distPath, "index.html"))
 	})
 
