@@ -18,16 +18,26 @@ import {
   CircularProgress,
   IconButton,
   Collapse,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
   Tooltip,
   Snackbar,
   Alert,
   Select,
   MenuItem,
-  TablePagination
+  TablePagination,
+  TextField,
+  InputAdornment,
+  Stepper,
+  Step,
+  StepLabel,
+  StepConnector,
+  stepConnectorClasses,
+  StepIconProps,
+  Drawer,
+  Divider,
+  Stack,
+  alpha,
+  useTheme,
+  styled
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -40,6 +50,10 @@ import TaskAltIcon from '@mui/icons-material/TaskAlt';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
+import TerminalIcon from '@mui/icons-material/Terminal';
 import { useTenant } from '../context/TenantContext';
 import {
   BarChart,
@@ -75,6 +89,9 @@ interface JobLog {
     timestamp: string;
     level: string;
     message: string;
+    step_name: string;
+    status_code: number;
+    response_body: string;
 }
 
 interface Job {
@@ -88,11 +105,89 @@ interface Job {
     trigger_context: string; 
 }
 
+const FlowConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.${stepConnectorClasses.alternativeLabel}`]: {
+    top: 22,
+  },
+  [`&.${stepConnectorClasses.active}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.primary.main,
+    },
+  },
+  [`&.${stepConnectorClasses.completed}`]: {
+    [`& .${stepConnectorClasses.line}`]: {
+      borderColor: theme.palette.success.main,
+    },
+  },
+  [`& .${stepConnectorClasses.line}`]: {
+    borderColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : '#eaeaf0',
+    borderTopWidth: 3,
+    borderRadius: 1,
+  },
+}));
+
+const FlowStepIconRoot = styled('div')<{
+  ownerState: { active?: boolean; completed?: boolean; status: string };
+}>(({ theme, ownerState }) => ({
+  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#ccc',
+  zIndex: 1,
+  color: '#fff',
+  width: 44,
+  height: 44,
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  border: '3px solid transparent',
+  transition: 'all 0.2s ease-in-out',
+  cursor: 'pointer',
+  ...(ownerState.status === 'success' && {
+    backgroundColor: theme.palette.success.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.success.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.success.main, 0.8)}`,
+    }
+  }),
+  ...(ownerState.status === 'warning' && {
+    backgroundColor: theme.palette.warning.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.warning.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.warning.main, 0.8)}`,
+    }
+  }),
+  ...(ownerState.status === 'error' && {
+    backgroundColor: theme.palette.error.main,
+    boxShadow: `0 0 12px ${alpha(theme.palette.error.main, 0.5)}`,
+    '&:hover': {
+        boxShadow: `0 0 20px ${alpha(theme.palette.error.main, 0.8)}`,
+    }
+  }),
+}));
+
+function FlowStepIcon(props: StepIconProps & { status: string }) {
+  const { active, completed, className, status } = props;
+
+  const icons: { [index: string]: React.ReactElement } = {
+    success: <CheckCircleIcon />,
+    warning: <InfoIcon />,
+    error: <ErrorIcon />,
+  };
+
+  return (
+    <FlowStepIconRoot ownerState={{ completed, active, status }} className={className}>
+      {icons[status] || <SyncIcon />}
+    </FlowStepIconRoot>
+  );
+}
+
 function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants: Tenant[] }) {
   const { job, onRerun, isGlobal, tenants } = props;
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<JobLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<JobLog | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const theme = useTheme();
 
   const handleExpand = async () => {
     const nextState = !open;
@@ -118,6 +213,19 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
       } catch (err) {
           console.error("Rerun failed", err);
       }
+  };
+
+  const getLogStatusColor = (log: JobLog) => {
+      if (log.level === 'ERROR') return 'error';
+      if (log.status_code >= 400) return 'error';
+      if (log.status_code >= 300) return 'warning';
+      if (log.message.includes('filtered') || log.message.includes('skipped')) return 'warning';
+      return 'success';
+  };
+
+  const handleLogClick = (log: JobLog) => {
+      setSelectedLog(log);
+      setDrawerOpen(true);
   };
 
   let playbookName = 'N/A';
@@ -181,67 +289,180 @@ function Row(props: { job: Job, onRerun: () => void, isGlobal: boolean, tenants:
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={isGlobal ? 8 : 7}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 2 }}>
-              <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TaskAltIcon fontSize="small" color="primary" /> Execution Audit Trail
+            <Box sx={{ margin: 3 }}>
+              <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <TaskAltIcon fontSize="small" color="primary" /> Execution Flow
               </Typography>
+              
               {loading ? (
                   <CircularProgress size={20} sx={{ m: 2 }} />
               ) : logs.length === 0 ? (
                   <Typography variant="caption" sx={{ ml: 4, fontStyle: 'italic' }}>No detailed logs available for this job.</Typography>
               ) : (
-                <List dense sx={{ bgcolor: 'action.hover', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                  {logs.map((log) => (
-                    <ListItem key={log.id} divider>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        {log.level === 'ERROR' ? <ErrorIcon color="error" sx={{ fontSize: 16 }} /> : <InfoIcon color="info" sx={{ fontSize: 16 }} />}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={
-                          (() => {
-                            const hasResponse = log.message.includes('\nResponse: ');
-                            const mainPart = hasResponse ? log.message.split('\nResponse: ')[0] : log.message;
-                            const responsePart = hasResponse ? log.message.split('\nResponse: ')[1] : null;
-                            const statusMatch = mainPart.match(/\(Status: (\d+)\)/);
-                            const statusCode = statusMatch ? statusMatch[1] : null;
-                            const cleanMainPart = statusCode ? mainPart.replace(`(Status: ${statusCode})`, '').trim() : mainPart;
+                <Box sx={{ width: '100%', overflowX: 'auto', pb: 2, pt: 8 }}>
+                    <Stepper alternativeLabel connector={<FlowConnector />}>
+                        {logs.map((log) => {
+                            const status = getLogStatusColor(log);
+                            const cleanTitle = log.step_name || 'System';
 
                             return (
-                              <>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                  <Typography variant="body2" sx={{ fontWeight: log.level === 'ERROR' ? 700 : 500 }}>
-                                    {cleanMainPart}
-                                  </Typography>
-                                  {statusCode && (
-                                    <Chip 
-                                      label={statusCode} 
-                                      size="small" 
-                                      variant="outlined"
-                                      color={parseInt(statusCode) >= 400 ? "error" : "success"}
-                                      sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, borderRadius: 0.5 }}
-                                    />
-                                  )}
-                                </Box>
-                                {responsePart && (
-                                  <Box component="code" sx={{ display: 'block', p: 1, bgcolor: 'background.paper', borderRadius: 1, fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid', borderColor: 'divider', color: 'primary.main', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                                    {responsePart}
-                                  </Box>
-                                )}
-                              </>
+                                <Step key={log.id}>
+                                    <StepLabel
+                                        onClick={() => handleLogClick(log)}
+                                        StepIconComponent={(props) => <FlowStepIcon {...props} status={status} />}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            '& .MuiStepLabel-label': {
+                                                position: 'absolute',
+                                                top: -45,
+                                                width: '100%',
+                                                fontWeight: 700,
+                                                fontSize: '0.75rem',
+                                                color: 'text.primary',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em'
+                                            }
+                                        }}
+                                    >
+                                        {cleanTitle}
+                                    </StepLabel>
+                                </Step>
                             );
-                          })()
-                        }
-                        secondary={new Date(log.timestamp).toLocaleTimeString()}
-                        primaryTypographyProps={{ component: 'div', variant: 'body2', sx: { whiteSpace: 'pre-wrap' } }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                        })}
+                    </Stepper>
+                </Box>
               )}
             </Box>
           </Collapse>
         </TableCell>
       </TableRow>
+
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 550 }, p: 0 } }}
+      >
+        {selectedLog && (
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'action.hover' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TerminalIcon color="primary" /> Log Details
+                    </Typography>
+                    <IconButton onClick={() => setDrawerOpen(false)}><CloseIcon /></IconButton>
+                </Box>
+                <Divider />
+                <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
+                    <Stack spacing={3}>
+                        {/* Status Header */}
+                        {(() => {
+                            const status = getLogStatusColor(selectedLog);
+                            const statusColor = (theme.palette as any)[status].main;
+                            const bgColor = alpha(statusColor, 0.1);
+
+                            return (
+                                <Paper variant="outlined" sx={{ 
+                                    p: 2, 
+                                    borderRadius: 2, 
+                                    bgcolor: bgColor,
+                                    borderColor: statusColor,
+                                    borderWidth: 2,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 2
+                                }}>
+                                    <Box sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center',
+                                        bgcolor: statusColor,
+                                        color: 'white',
+                                        borderRadius: '50%',
+                                        p: 1
+                                    }}>
+                                        {status === 'error' ? <ErrorIcon /> : status === 'warning' ? <InfoIcon /> : <CheckCircleIcon />}
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="h6" sx={{ fontWeight: 800, color: statusColor, lineHeight: 1 }}>
+                                            {status.toUpperCase()}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                            {new Date(selectedLog.timestamp).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </Paper>
+                            );
+                        })()}
+
+                        {/* Identification Info */}
+                        <Box sx={{ px: 1 }}>
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Step Name</Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                    {selectedLog.step_name || 'System Process'}
+                                </Typography>
+                            </Box>
+                            
+                            <Box>
+                                <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Execution Status</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Chip 
+                                        label={selectedLog.status_code > 0 ? `HTTP ${selectedLog.status_code}` : selectedLog.level} 
+                                        color={getLogStatusColor(selectedLog) === 'error' ? 'error' : getLogStatusColor(selectedLog) === 'warning' ? 'warning' : 'success'} 
+                                        sx={{ fontWeight: 700 }}
+                                    />
+                                    {selectedLog.response_body && (
+                                        <Chip label="Response Captured" variant="outlined" size="small" sx={{ fontWeight: 600 }} />
+                                    )}
+                                </Box>
+                            </Box>
+                        </Box>
+
+                        <Divider />
+
+                        {/* Full Message / Response */}
+                        <Box>
+                            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800 }}>Message & Response Content</Typography>
+                            <Paper variant="outlined" sx={{ 
+                                mt: 1, 
+                                bgcolor: 'action.hover', 
+                                p: 2, 
+                                borderRadius: 2,
+                                borderStyle: 'dashed',
+                                maxHeight: '500px',
+                                overflow: 'auto'
+                            }}>
+                                <Typography variant="body2" sx={{ 
+                                    fontFamily: 'monospace', 
+                                    whiteSpace: 'pre-wrap', 
+                                    wordBreak: 'break-word',
+                                    lineHeight: 1.6,
+                                    fontSize: '0.85rem'
+                                }}>
+                                    {(() => {
+                                        if (selectedLog.response_body) {
+                                            try {
+                                                return JSON.stringify(JSON.parse(selectedLog.response_body), null, 2);
+                                            } catch (e) {
+                                                return selectedLog.response_body;
+                                            }
+                                        }
+                                        return selectedLog.message;
+                                    })()}
+                                </Typography>
+                            </Paper>
+                        </Box>
+                    </Stack>
+                </Box>
+                <Divider />
+                <Box sx={{ p: 2, textAlign: 'center', bgcolor: 'background.default' }}>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>
+                        Internal Job ID: {job.id} | Log Trace: {selectedLog.id}
+                    </Typography>
+                </Box>
+            </Box>
+        )}
+      </Drawer>
     </>
   );
 }
@@ -252,6 +473,8 @@ export default function Dashboard() {
   const [totalJobs, setTotalJobs] = useState(0);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [settings, setSettings] = useState<{key: string, value: string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [rerunTriggered, setRerunTriggered] = useState(false);
@@ -268,7 +491,7 @@ export default function Dashboard() {
 
         const [statsRes, jobsRes, settingsRes] = await Promise.all([
             client.get(statsUrl, { headers }),
-            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}`, { headers }),
+            client.get(`/jobs?page=${page + 1}&pageSize=${rowsPerPage}&search=${search}&status=${statusFilter}`, { headers }),
             client.get('/settings')
         ]);
 
@@ -305,7 +528,7 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 10000); 
     return () => clearInterval(interval);
-  }, [page, rowsPerPage, selectedTenant]);
+  }, [page, rowsPerPage, selectedTenant, search, statusFilter]);
 
   if (loading || !stats) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
@@ -412,11 +635,11 @@ export default function Dashboard() {
                           <Legend />
                           {selectedTenant === 0 ? (
                               <>
-                                <Bar dataKey="events" name="Events Processed" fill="#00D1B2" radius={[0, 4, 4, 0]} barSize={15} />
-                                <Bar dataKey="executions" name="Workflows Executed" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="events" name="Events Processed" fill="#5ab645" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="executions" name="Workflows Executed" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={15} />
                               </>
                           ) : (
-                                <Bar dataKey="value" name="Executions" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={20} />
+                                <Bar dataKey="value" name="Executions" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={20} />
                           )}
                       </BarChart>
                   </ResponsiveContainer>
@@ -436,10 +659,10 @@ export default function Dashboard() {
                             <YAxis tick={{ fontSize: 11 }} />
                             <RechartsTooltip />
                             <Legend wrapperStyle={{ fontSize: '10px' }} />
-                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#00D1B2" />
-                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#FFBB28" />
-                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#FF8042" />
-                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#AAAAAA" />
+                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#5ab645" />
+                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#fbb400" />
+                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#fb7300" />
+                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#ced5db" />
                         </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -448,10 +671,10 @@ export default function Dashboard() {
                           <Box key={d.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 60 }}>{d.name}</Typography>
                               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#00D1B2', color: 'white' }} />}
-                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FFBB28', color: 'white' }} />}
-                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FF8042', color: 'white' }} />}
-                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#AAAAAA', color: 'white' }} />}
+                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#5ab645', color: 'white' }} />}
+                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fbb400', color: 'white' }} />}
+                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fb7300', color: 'white' }} />}
+                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#ced5db', color: 'white' }} />}
                               </Box>
                           </Box>
                       ))}
@@ -460,9 +683,50 @@ export default function Dashboard() {
           </Grid>
       </Grid>
 
-      <Typography variant="h5" gutterBottom sx={{ mt: 6, fontWeight: 700 }}>
-          {selectedTenant === 0 ? 'Recent Global Activity' : 'Tenant Activity'}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: 2, mt: 6 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            {selectedTenant === 0 ? 'Recent Global Activity' : 'Tenant Activity'}
+        </Typography>
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
+                size="small"
+                placeholder="Search Issue ID or Workflow..."
+                value={search}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(0);
+                }}
+                InputProps={{
+                    startAdornment: (
+                        <InputAdornment position="start">
+                            <SearchIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                    ),
+                }}
+                sx={{ width: 300 }}
+            />
+            
+            <Select
+                size="small"
+                displayEmpty
+                value={statusFilter}
+                onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(0);
+                }}
+                startAdornment={<FilterListIcon fontSize="small" sx={{ mr: 1, color: 'action.active' }} />}
+                sx={{ minWidth: 150 }}
+            >
+                <MenuItem value="">All Statuses</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="failed">Failed</MenuItem>
+                <MenuItem value="running">Running</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+            </Select>
+        </Box>
+      </Box>
+
       <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <TableContainer>
             <Table aria-label="collapsible table">

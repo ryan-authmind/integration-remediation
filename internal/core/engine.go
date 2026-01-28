@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -442,38 +441,18 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 		}
 
 		resp, code, err := executor.Execute(integration, actionDef, contextData)
+        redactedResp := security.Redact(string(resp))
+
 		if err != nil {
             errMsg := fmt.Sprintf("Step %d (%s) failed (Status: %d): %v", step.Order, actionDef.Name, code, err)
-            if len(resp) > 0 {
-                errMsg += fmt.Sprintf("\nResponse Body: %s", security.Redact(string(resp)))
-            }
-			e.logToJob(job.ID, "ERROR", errMsg)
+			e.logToJobStructured(job.ID, "ERROR", errMsg, actionDef.Name, code, redactedResp)
 			success = false
 			break
 		}
 		
-        // Always log success for visibility, but redact response
+        // Always log success for visibility
         logMsg := fmt.Sprintf("Step %d (%s) completed successfully (Status: %d)", step.Order, actionDef.Name, code)
-        if len(resp) > 0 {
-            redactedResp := security.Redact(string(resp))
-            if e.DebugMode {
-                var pretty bytes.Buffer
-                if err := json.Indent(&pretty, []byte(redactedResp), "", "  "); err == nil {
-                    logMsg += fmt.Sprintf("\nResponse: %s", pretty.String())
-                } else {
-                    logMsg += fmt.Sprintf("\nResponse: %s", redactedResp)
-                }
-            } else {
-                // In non-debug mode, maybe just log a snippet or nothing if it's too large?
-                // For now, let's log the redacted response but limited size.
-                if len(redactedResp) > 500 {
-                    logMsg += fmt.Sprintf("\nResponse (truncated): %s...", redactedResp[:500])
-                } else {
-                    logMsg += fmt.Sprintf("\nResponse: %s", redactedResp)
-                }
-            }
-        }
-        e.logToJob(job.ID, "INFO", logMsg)
+        e.logToJobStructured(job.ID, "INFO", logMsg, actionDef.Name, code, redactedResp)
 	}
 
 	finalStatus := "completed"
@@ -483,13 +462,20 @@ func (e *Engine) pollAuthMind(task PollingTask) {
 	database.DB.Model(&job).Update("status", finalStatus)
 }
 
-func (e *Engine) logToJob(jobID uint, level string, msg string) {
+func (e *Engine) logToJobStructured(jobID uint, level string, msg string, stepName string, statusCode int, response string) {
 	database.DB.Create(&database.JobLog{
-		JobID:     jobID,
-		Timestamp: time.Now(),
-		Level:     level,
-		Message:   msg,
+		JobID:        jobID,
+		Timestamp:    time.Now(),
+		Level:        level,
+		Message:      msg,
+        StepName:     stepName,
+        StatusCode:   statusCode,
+        ResponseBody: response,
 	})
+}
+
+func (e *Engine) logToJob(jobID uint, level string, msg string) {
+    e.logToJobStructured(jobID, level, msg, "", 0, "")
 }
 
 func (e *Engine) runRetentionPolicy() {

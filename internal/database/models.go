@@ -176,6 +176,11 @@ type JobLog struct {
 	Timestamp time.Time `json:"timestamp"`
 	Level     string    `json:"level"` // "INFO", "ERROR"
 	Message   string    `json:"message"`
+    
+    // Structured Logging Fields
+    StepName     string `json:"step_name"`
+    StatusCode   int    `json:"status_code"`
+    ResponseBody string `json:"response_body"`
 }
 
 // ProcessedEvent tracks every event seen by the system for throughput metrics
@@ -200,6 +205,51 @@ type SystemSetting struct {
 	Key         string `gorm:"uniqueIndex" json:"key"`
 	Value       string `json:"value"`
 	Description string `json:"description"`
+}
+
+// User roles for RBAC
+const (
+	RoleAdmin          = "admin"
+	RoleActionBuilder  = "action_builder"
+	RoleIntegrator     = "integrator"
+	RoleWorkflowEditor = "workflow_editor"
+	RoleViewer         = "viewer"
+)
+
+// User represents an authenticated person accessing the system
+type User struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	Email     string `gorm:"uniqueIndex" json:"email"`
+	Name      string `json:"name"`
+	Role      string `json:"role"` // "admin", "operator", "viewer"
+	AvatarURL string `json:"avatar_url"`
+
+	// External ID for SSO/OIDC
+	ExternalID string `gorm:"index" json:"external_id"`
+	Provider   string `json:"provider"` // "google", "entra", "local"
+}
+
+// AuditLog tracks administrative actions and state changes
+type AuditLog struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Timestamp time.Time `gorm:"index" json:"timestamp"`
+
+	UserID uint `gorm:"index" json:"user_id"`
+	User   User `gorm:"foreignKey:UserID" json:"user"`
+
+	TenantID uint   `gorm:"index" json:"tenant_id"`
+	Tenant   Tenant `gorm:"foreignKey:TenantID" json:"tenant"`
+
+	Action   string `json:"action"`   // "CREATE", "UPDATE", "DELETE", "EXECUTE", "LOGIN"
+	Resource string `json:"resource"` // "INTEGRATION", "WORKFLOW", "TENANT", etc.
+	TargetID string `json:"target_id"` // ID of the resource modified
+
+	Details string `json:"details"` // JSON blob of changes or context
+	IP      string `json:"ip"`
 }
 
 // MessageTemplate stores localized strings for notifications

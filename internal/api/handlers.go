@@ -54,6 +54,9 @@ func CreateIntegration(c *gin.Context) {
 			return
 		}
 
+        userID, _ := c.Get("user_id")
+        LogAudit(c, userID.(uint), input.TenantID, "CREATE", "INTEGRATION", fmt.Sprintf("%d", input.ID), input)
+
 	        // Seed default AuthMind Poller for the new tenant
 	        defaultPoller := database.Integration{
 	            TenantID:               input.ID,
@@ -129,14 +132,28 @@ func ImportConfiguration(c *gin.Context) {
 // GetActionDefinitions returns all action templates
 func GetActionDefinitions(c *gin.Context) {
     tenantID := tenancy.ResolveTenantID(c)
+    search := c.Query("search")
+    method := c.Query("method")
+
 	var definitions []database.ActionDefinition
     
     query := database.DB.Preload("Tenant").Model(&database.ActionDefinition{})
     if tenancy.IsMultiTenant && tenantID == 0 {
-        query.Find(&definitions)
+        // Global view
     } else {
-        query.Where("tenant_id = ?", tenantID).Find(&definitions)
+        query = query.Where("tenant_id = ?", tenantID)
     }
+
+    if search != "" {
+        searchTerm := "%" + search + "%"
+        query = query.Where("name LIKE ? OR vendor LIKE ? OR path_template LIKE ?", searchTerm, searchTerm, searchTerm)
+    }
+
+    if method != "" {
+        query = query.Where("method = ?", method)
+    }
+
+    query.Find(&definitions)
 	c.JSON(http.StatusOK, definitions)
 }
 
@@ -243,14 +260,34 @@ func ResetIntegrationCircuitBreaker(c *gin.Context) {
 // GetWorkflows returns all workflows and their steps
 func GetWorkflows(c *gin.Context) {
     tenantID := tenancy.ResolveTenantID(c)
+    search := c.Query("search")
+    triggerType := c.Query("trigger_type")
+    enabled := c.Query("enabled")
+
 	var workflows []database.Workflow
     
-    query := database.DB.Preload("Tenant").Preload("AuthMindPollers").Preload("Steps").Preload("Steps.ActionDefinition")
+    query := database.DB.Preload("Tenant").Preload("AuthMindPollers").Preload("Steps").Preload("Steps.ActionDefinition").Model(&database.Workflow{})
+    
     if tenancy.IsMultiTenant && tenantID == 0 {
-        query.Find(&workflows)
+        // Global view
     } else {
-        query.Where("tenant_id = ?", tenantID).Find(&workflows)
+        query = query.Where("tenant_id = ?", tenantID)
     }
+
+    if search != "" {
+        searchTerm := "%" + search + "%"
+        query = query.Where("name LIKE ? OR description LIKE ?", searchTerm, searchTerm)
+    }
+
+    if triggerType != "" {
+        query = query.Where("trigger_type = ?", triggerType)
+    }
+
+    if enabled != "" {
+        query = query.Where("enabled = ?", enabled == "true")
+    }
+
+    query.Find(&workflows)
 	c.JSON(http.StatusOK, workflows)
 }
 
@@ -265,6 +302,10 @@ func CreateWorkflow(c *gin.Context) {
     workflow.TenantID = tenancy.ResolveTenantID(c)
 
 	database.DB.Create(&workflow)
+
+    userID, _ := c.Get("user_id")
+    LogAudit(c, userID.(uint), workflow.TenantID, "CREATE", "WORKFLOW", fmt.Sprintf("%d", workflow.ID), workflow)
+
 	c.JSON(http.StatusCreated, workflow)
 }
 
@@ -318,6 +359,9 @@ func UpdateWorkflow(c *gin.Context) {
 		return
 	}
 
+    userID, _ := c.Get("user_id")
+    LogAudit(c, userID.(uint), tenantID, "UPDATE", "WORKFLOW", fmt.Sprintf("%d", workflow.ID), workflow)
+
 	c.JSON(http.StatusOK, workflow)
 }
 
@@ -337,6 +381,9 @@ func DeleteWorkflow(c *gin.Context) {
 func GetJobs(c *gin.Context) {
     page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
     pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+    search := c.Query("search")
+    status := c.Query("status")
+
     if page < 1 { page = 1 }
     if pageSize < 1 { pageSize = 10 }
     if pageSize > 100 { pageSize = 100 }
@@ -347,16 +394,34 @@ func GetJobs(c *gin.Context) {
     var total int64
     tenantID := tenancy.ResolveTenantID(c)
 
+    // Base queries
     countQuery := database.DB.Model(&database.Job{})
-    dataQuery := database.DB.Preload("Tenant").Preload("Workflow").Order("created_at desc").Limit(pageSize).Offset(offset)
+    // Use Joins("Workflow") for dataQuery to allow sorting and filtering by workflow fields
+    // This also preloads Workflow into the Job struct
+    dataQuery := database.DB.Preload("Tenant").Joins("Workflow").Order("jobs.created_at desc").Limit(pageSize).Offset(offset)
 
     if tenancy.IsMultiTenant && tenantID == 0 {
-        countQuery.Count(&total)
-        dataQuery.Find(&jobs)
+        // Global view - no extra filtering
     } else {
-        countQuery.Where("tenant_id = ?", tenantID).Count(&total)
-        dataQuery.Where("tenant_id = ?", tenantID).Find(&jobs)
+        countQuery = countQuery.Where("jobs.tenant_id = ?", tenantID)
+        dataQuery = dataQuery.Where("jobs.tenant_id = ?", tenantID)
     }
+
+    if search != "" {
+        searchTerm := "%" + search + "%"
+        filter := "jobs.authmind_issue_id LIKE ? OR Workflow.name LIKE ?"
+        // countQuery needs the Join to filter by Workflow.name
+        countQuery = countQuery.Joins("Workflow").Where(filter, searchTerm, searchTerm)
+        dataQuery = dataQuery.Where(filter, searchTerm, searchTerm)
+    }
+
+    if status != "" {
+        countQuery = countQuery.Where("jobs.status = ?", status)
+        dataQuery = dataQuery.Where("jobs.status = ?", status)
+    }
+
+    countQuery.Count(&total)
+    dataQuery.Find(&jobs)
 
     c.JSON(http.StatusOK, gin.H{
         "data":      jobs,
@@ -502,8 +567,16 @@ func UpdateSetting(c *gin.Context) {
 
 // GetTenants returns a list of all tenants (Admin only)
 func GetTenants(c *gin.Context) {
+    search := c.Query("search")
 	var tenants []database.Tenant
-	database.DB.Find(&tenants)
+    query := database.DB.Model(&database.Tenant{})
+
+    if search != "" {
+        searchTerm := "%" + search + "%"
+        query = query.Where("name LIKE ? OR description LIKE ?", searchTerm, searchTerm)
+    }
+
+	query.Find(&tenants)
 	c.JSON(http.StatusOK, tenants)
 }
 

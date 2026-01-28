@@ -64,6 +64,7 @@ const getVendorLogo = (name: string) => {
     if (n.includes('google') || n.includes('secops')) return '/vendors/google.png';
     if (n.includes('sailpoint')) return '/vendors/sailpoint.png';
     if (n.includes('saviynt')) return '/vendors/saviynt.png';
+    if (n.includes('ssf') || n.includes('shared signals')) return '/vendors/ssf.png';
     return null;
 };
 
@@ -88,7 +89,11 @@ export default function Integrations() {
       client_secret: '',
       token_endpoint: '',
       rotation_interval: 0,
-      polling_interval: 60
+      polling_interval: 60,
+      // SSF Specific
+      issuer: '',
+      key_id: '',
+      private_key: ''
   });
 
   const [notification, setNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
@@ -138,14 +143,17 @@ export default function Integrations() {
           client_secret: '',
           token_endpoint: '',
           rotation_interval: 0,
-          polling_interval: 60
+          polling_interval: 60,
+          issuer: '',
+          key_id: '',
+          private_key: ''
       });
       setOpen(true);
   };
 
-  const handleEditOpen = (integration: Integration) => {
+    const handleEditOpen = (integration: Integration) => {
     setSelected(integration);
-    let creds = { username: '', password: '', token: '', api_key: '', header_name: '', client_id: '', client_secret: '' };
+    let creds = { username: '', password: '', token: '', api_key: '', header_name: '', client_id: '', client_secret: '', issuer: '', key_id: '', private_key: '' };
     try {
         creds = JSON.parse(integration.credentials);
     } catch (e) {}
@@ -163,7 +171,10 @@ export default function Integrations() {
         client_secret: creds.client_secret || '',
         token_endpoint: integration.token_endpoint || '',
         rotation_interval: integration.rotation_interval_days || 0,
-        polling_interval: integration.polling_interval || 60
+        polling_interval: integration.polling_interval || 60,
+        issuer: creds.issuer || '',
+        key_id: creds.key_id || '',
+        private_key: creds.private_key || ''
     });
     setOpen(true);
   };
@@ -176,7 +187,11 @@ export default function Integrations() {
         api_key: formData.token, // Map token to api_key for backend consistency
         header_name: formData.apiKeyHeader,
         client_id: formData.client_id,
-        client_secret: formData.client_secret
+        client_secret: formData.client_secret,
+        // SSF
+        issuer: formData.issuer,
+        key_id: formData.key_id,
+        private_key: formData.private_key
     });
 
     const payload = {
@@ -306,9 +321,20 @@ export default function Integrations() {
         )}
         {integrations.map((item) => (
           <Grid item xs={12} md={6} lg={4} key={item.id}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Card 
+                variant="outlined" 
+                sx={{ 
+                    borderRadius: 3, 
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+                    '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0px 20px 40px rgba(35, 34, 71, 0.1)',
+                    }
+                }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {getVendorLogo(item.name) ? (
                             <img 
@@ -317,30 +343,59 @@ export default function Integrations() {
                                 style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} 
                             />
                         ) : (
-                            <CloudQueueIcon color="primary" />
+                            <Box sx={{ 
+                                bgcolor: 'rgba(255, 18, 83, 0.1)', 
+                                p: 1, 
+                                borderRadius: 2, 
+                                display: 'flex',
+                                color: 'primary.main'
+                            }}>
+                                <CloudQueueIcon />
+                            </Box>
                         )}
                         {selectedTenant === 0 && item.tenant && (
                             <Chip 
                                 label={item.tenant.name} 
                                 size="small" 
-                                color="secondary" 
                                 variant="filled" 
-                                sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} 
+                                sx={{ 
+                                    fontWeight: 700, 
+                                    fontSize: '0.65rem', 
+                                    height: 20,
+                                    bgcolor: 'secondary.main',
+                                    color: 'white'
+                                }} 
                             />
                         )}
                     </Box>
-                    <Chip label={item.auth_type.toUpperCase()} size="small" variant="outlined" />
+                    <Chip 
+                        label={item.auth_type.toUpperCase()} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ fontWeight: 600, borderRadius: 1.5 }}
+                    />
                 </Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>{item.name}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{item.base_url}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{item.name}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                    {item.base_url}
+                </Typography>
                 
                 {!item.is_available && (
-                    <Alert severity="error" sx={{ mb: 2, py: 0, '& .MuiAlert-icon': { fontSize: 18 } }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    <Alert 
+                        severity="error" 
+                        variant="standard"
+                        sx={{ 
+                            mb: 2, 
+                            py: 1, 
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255, 43, 0, 0.1)',
+                            color: '#ff2b00',
+                            border: '1px solid rgba(255, 43, 0, 0.2)',
+                            '& .MuiAlert-icon': { fontSize: 20, color: '#ff2b00' } 
+                        }}
+                    >
+                        <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.05em' }}>
                             SERVICE UNAVAILABLE
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.7rem', display: 'block' }}>
-                            Disabled after {item.consecutive_failures} consecutive failures.
                         </Typography>
                     </Alert>
                 )}
@@ -348,17 +403,17 @@ export default function Integrations() {
                 {item.rotation_interval_days > 0 && (
                     <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <SecurityIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                        <Typography variant="caption" color="success.main">
-                            Auto-rotation: Every {item.rotation_interval_days} days
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
+                            Auto-rotation active
                         </Typography>
                     </Box>
                 )}
               </CardContent>
-              <Divider />
-              <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+              <Divider sx={{ borderStyle: 'dashed' }} />
+              <CardActions sx={{ justifyContent: 'space-between', px: 3, py: 2, bgcolor: 'rgba(115, 131, 143, 0.02)' }}>
                 <FormControlLabel
-                  control={<Switch checked={item.enabled} onChange={() => handleToggle(item)} />}
-                  label="Enabled"
+                  control={<Switch size="small" checked={item.enabled} onChange={() => handleToggle(item)} />}
+                  label={<Typography variant="caption" sx={{ fontWeight: 700 }}>ENABLED</Typography>}
                 />
                 <Box>
                     {!item.is_available && (
@@ -369,10 +424,17 @@ export default function Integrations() {
                             sx={{ mr: 1, fontWeight: 700, fontSize: '0.7rem' }}
                             onClick={() => handleReset(item)}
                         >
-                            Reset Connection
+                            Reset
                         </Button>
                     )}
-                    <Button startIcon={<SettingsIcon />} onClick={() => handleEditOpen(item)}>Configure</Button>
+                    <Button 
+                        startIcon={<SettingsIcon />} 
+                        size="small"
+                        sx={{ fontWeight: 700 }}
+                        onClick={() => handleEditOpen(item)}
+                    >
+                        Configure
+                    </Button>
                 </Box>
               </CardActions>
             </Card>
@@ -413,9 +475,17 @@ export default function Integrations() {
                         <Select
                             value={formData.type}
                             label="Connection Type"
-                            onChange={(e) => setFormData({...formData, type: e.target.value})}
+                            onChange={(e) => {
+                                const newType = e.target.value;
+                                let newAuthType = formData.auth_type;
+                                if (newType === 'SSF') {
+                                    newAuthType = 'ssf';
+                                }
+                                setFormData({...formData, type: newType, auth_type: newAuthType});
+                            }}
                         >
                             <MenuItem value="REST">REST API</MenuItem>
+                            <MenuItem value="SSF">Shared Signals (SSF)</MenuItem>
                             <MenuItem value="WINRM">WinRM (Windows)</MenuItem>
                             <MenuItem value="EMAIL">Email Service</MenuItem>
                         </Select>
@@ -442,9 +512,52 @@ export default function Integrations() {
                             <MenuItem value="apikey">Custom Header (API Key)</MenuItem>
                             <MenuItem value="ntlm">NTLM (Windows)</MenuItem>
                             <MenuItem value="oauth2">OAuth2 Client Credentials</MenuItem>
+                            <MenuItem value="ssf">SSF Signature (RSA)</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
+
+                {formData.auth_type === 'ssf' && (
+                    <>
+                        <Grid item xs={12}>
+                            <Divider sx={{ my: 1 }}>
+                                <Chip label="SSF Configuration" size="small" />
+                            </Divider>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="Issuer (iss)" 
+                                fullWidth 
+                                placeholder="Defaults to Integration Name"
+                                value={formData.issuer}
+                                onChange={(e) => setFormData({...formData, issuer: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField 
+                                label="Key ID (kid)" 
+                                fullWidth 
+                                value={formData.key_id}
+                                onChange={(e) => setFormData({...formData, key_id: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField 
+                                label="RSA Private Key (PEM)" 
+                                multiline
+                                rows={4}
+                                fullWidth 
+                                value={formData.private_key}
+                                onChange={(e) => setFormData({...formData, private_key: e.target.value})}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Typography variant="caption" color="text.secondary">
+                                * The system will sign the SET payload using this key. Note: Transport authentication is disabled when using SSF Signature mode.
+                            </Typography>
+                        </Grid>
+                    </>
+                )}
 
                 {formData.auth_type === 'oauth2' && (
                     <>

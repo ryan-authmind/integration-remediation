@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"remediation-engine/internal/database"
+	"remediation-engine/internal/integrations"
     "remediation-engine/internal/security"
 	"strconv"
 	"strings"
@@ -95,6 +96,8 @@ func (e *ActionExecutor) Execute(integration database.Integration, definition da
 		if strings.ToUpper(integration.Type) == "WINRM" {
 			resp, lastErr = e.executeWinRM(integration, definition, contextData)
 			code = 0 // WinRM doesn't have HTTP codes
+		} else if strings.ToUpper(integration.Type) == "SSF" {
+			resp, code, lastErr = e.executeSSF(integration, definition, contextData)
 		} else {
 			resp, code, lastErr = e.executeREST(integration, definition, contextData)
 		}
@@ -245,6 +248,91 @@ func (e *ActionExecutor) executeWinRM(integration database.Integration, definiti
     return stdout.Bytes(), nil
 }
 
+func (e *ActionExecutor) executeSSF(integration database.Integration, definition database.ActionDefinition, contextData map[string]interface{}) ([]byte, int, error) {
+	// 1. Resolve Payload (BodyTemplate serves as the SSF Payload Template)
+	payloadJSON, err := e.renderTemplate(definition.BodyTemplate, contextData)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to render ssf payload: %v", err)
+	}
+
+	var payload integrations.SSFPayload
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		return nil, 0, fmt.Errorf("failed to unmarshal ssf payload: %v", err)
+	}
+
+	// 2. Parse Credentials for Private Key
+	var creds map[string]string
+	if err := json.Unmarshal([]byte(integration.Credentials), &creds); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse integration credentials: %v", err)
+	}
+
+	// 3. Sign Token (SET)
+	// Issuer defaults to Tenant Name if not specified in creds
+	issuer := creds["issuer"]
+	if issuer == "" {
+		issuer = integration.Name
+	}
+
+	client := integrations.SSFClient{Issuer: issuer}
+	
+	// Key ID (kid) is optional but recommended
+	signedToken, err := client.SignToken(payload, creds["private_key"], creds["key_id"])
+	if err != nil {
+		return nil, 0, fmt.Errorf("signing failed: %v", err)
+	}
+
+	if e.DebugMode {
+		log.Printf("[Executor] Generated SET for %s: %s", integration.Name, signedToken)
+	}
+
+	// 4. Send Request
+	// Note: RFC 8417/8935 uses Content-Type: application/secevent+jwt
+	// The body is just the JWT string, OR a JSON object containing it.
+	// CAEP/RISC often use Push Delivery (RFC 8935):
+	// POST /endpoint HTTP/1.1
+	// Content-Type: application/secevent+jwt
+	// Accept: application/json
+	//
+	// [SET JWT]
+	
+	fullURL := integration.BaseURL
+	// Allow path template to append to base url if needed (e.g. specific stream ID)
+	if definition.PathTemplate != "" {
+		path, err := e.renderTemplate(definition.PathTemplate, contextData)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to render path: %v", err)
+		}
+		fullURL += path
+	}
+
+	req, err := http.NewRequest(definition.Method, fullURL, bytes.NewBuffer([]byte(signedToken)))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	req.Header.Set("Content-Type", "application/secevent+jwt")
+	req.Header.Set("Accept", "application/json")
+
+	// Apply Transport Authentication (e.g. Bearer/OAuth2 for the HTTP connection itself)
+	// This uses the EXISTING applyAuth method, so we can support standard Auth types for the transport.
+	if err := e.applyAuth(req, integration); err != nil {
+		return nil, 0, err
+	}
+
+	resp, err := e.Client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return respBody, resp.StatusCode, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	return respBody, resp.StatusCode, nil
+}
+
 func (e *ActionExecutor) renderTemplate(tplStr string, data interface{}) (string, error) {
 	tmpl, err := template.New("action").Funcs(template.FuncMap{
 		"default": func(defaultValue string, value interface{}) string {
@@ -285,6 +373,47 @@ func (e *ActionExecutor) renderTemplate(tplStr string, data interface{}) (string
 				return s[:length]
 			}
 			return s
+		},
+		"ssf_event_type": func(issueType interface{}) string {
+			it := fmt.Sprintf("%v", issueType)
+			riscPrefix := "https://schemas.openid.net/secevent/risc/event-type/"
+			caepPrefix := "https://schemas.openid.net/secevent/caep/event-type/"
+
+			switch strings.ToLower(it) {
+			// Account Compromised (RISC)
+			case "compromised user", "compromised password", "suspected ad brute-force attack", 
+			     "suspected identity brute-force attack", "suspected ad golden ticket attack", 
+				 "suspected ad pass-the-ticket attack", "suspected directory/idp bot attack":
+				return riscPrefix + "account-compromised"
+
+			// Credential Change Required (RISC / CAEP) - RISC is more common for this
+			case "weak password", "password hash length", "password salt", 
+			     "md4 related issues", "md5 related issues", "sha-1 related issues":
+				return riscPrefix + "credential-change-required"
+
+			// Account Disabled (RISC)
+			case "shadow access", "shadow identity systems", "unused identities":
+				return riscPrefix + "account-disabled"
+
+			// Assurance Level Change (CAEP) - e.g. MFA missing
+			case "lack of mfa", "assets with no mfa configured":
+				return caepPrefix + "assurance-level-change"
+
+			// Device Compliance Change (CAEP)
+			case "exposed assets", "shadow assets", "repeated ad login attempts from invalid device":
+				return caepPrefix + "device-compliance-change"
+
+			// Session Revoked (CAEP) - Default for suspicious activities
+			case "suspicious inbound access", "suspicious outbound access", "impossible travel", 
+			     "unusual user access", "unauthorized identity access", "access from unauthorized country",
+				 "access to unauthorized country", "access using public vpn", "access using anonymous ip",
+				 "suspected access token sharing":
+				return caepPrefix + "session-revoked"
+			
+			// Default fallback
+			default:
+				return caepPrefix + "session-revoked"
+			}
 		},
 	}).Parse(tplStr)
 	if err != nil {

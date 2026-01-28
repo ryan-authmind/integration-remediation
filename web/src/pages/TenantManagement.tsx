@@ -24,6 +24,8 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
 import { useTenant } from '../context/TenantContext';
 
 interface Tenant {
@@ -36,6 +38,7 @@ interface Tenant {
 export default function TenantManagement() {
   const { refreshTenants } = useTenant();
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Tenant | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '', api_key: '' });
@@ -43,11 +46,11 @@ export default function TenantManagement() {
 
   useEffect(() => {
     fetchTenants();
-  }, []);
+  }, [search]);
 
   const fetchTenants = async () => {
     try {
-      const res = await client.get('/admin/tenants');
+      const res = await client.get(`/admin/tenants?search=${search}`);
       setTenants(res.data);
     } catch (error) {
       console.error("Failed to fetch tenants", error);
@@ -106,6 +109,23 @@ export default function TenantManagement() {
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddNew}>
           New Tenant
         </Button>
+      </Box>
+
+      <Box sx={{ mb: 3 }}>
+        <TextField
+            size="small"
+            placeholder="Search name or description..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+                startAdornment: (
+                    <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                ),
+            }}
+            sx={{ width: 350 }}
+        />
       </Box>
 
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>

@@ -10,9 +10,24 @@ import WorkflowEditor from './pages/WorkflowEditor';
 import ActionTemplates from './pages/ActionTemplates';
 import Dashboard from './pages/Dashboard';
 import TenantManagement from './pages/TenantManagement';
+import AuditLog from './pages/AuditLog';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { TenantProvider } from './context/TenantContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { Navigate } from 'react-router-dom';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) return null;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <Layout>{children}</Layout>;
+}
 
 export default function App() {
   const [mode, setMode] = React.useState<'light' | 'dark' | 'system'>('light');
@@ -46,20 +61,24 @@ export default function App() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <TenantProvider>
-            <BrowserRouter>
-                <Layout>
-                    <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/tenants" element={<TenantManagement />} />
-                        <Route path="/integrations" element={<Integrations />} />
-                        <Route path="/actions" element={<ActionTemplates />} />
-                        <Route path="/workflows" element={<Workflows />} />
-                        <Route path="/workflows/:id" element={<WorkflowEditor />} />
-                    </Routes>
-                </Layout>
-            </BrowserRouter>
-        </TenantProvider>
+        <AuthProvider>
+          <TenantProvider>
+              <BrowserRouter>
+                  <Routes>
+                      <Route path="/login" element={<Login />} />
+                      
+                      {/* Protected Routes */}
+                      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                      <Route path="/tenants" element={<ProtectedRoute><TenantManagement /></ProtectedRoute>} />
+                      <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
+                      <Route path="/actions" element={<ProtectedRoute><ActionTemplates /></ProtectedRoute>} />
+                      <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+                      <Route path="/workflows/:id" element={<ProtectedRoute><WorkflowEditor /></ProtectedRoute>} />
+                      <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
+                  </Routes>
+              </BrowserRouter>
+          </TenantProvider>
+        </AuthProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );

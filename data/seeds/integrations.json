@@ -91,5 +91,14 @@
     "auth_type": "apikey",
     "credentials": "{\"header_name\":\"X-API-Key\",\"api_key\":\"your-key\"}",
     "enabled": true
+  },
+  {
+    "tenant_id": 1,
+    "name": "Generic SSF Receiver",
+    "type": "SSF",
+    "base_url": "https://receiver.example.com/risk/events",
+    "auth_type": "bearer",
+    "credentials": "{\"token\":\"transport-token\",\"key_id\":\"key-1\",\"private_key\":\"-----BEGIN RSA PRIVATE KEY-----\\nPLACEHOLDER_REPLACE_WITH_ACTUAL_PRIVATE_KEY\\n-----END RSA PRIVATE KEY-----\"}",
+    "enabled": true
   }
 ]

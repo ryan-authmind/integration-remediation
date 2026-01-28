@@ -37,6 +37,8 @@ func InitDB(dbPath string) {
 
 	// Auto-Migrate Schema
 	err = DB.AutoMigrate(
+		&User{},
+		&AuditLog{},
         &Tenant{},
 		&Integration{},
 		&ActionDefinition{},
@@ -60,8 +62,33 @@ func InitDB(dbPath string) {
 
 	// Run data migrations (e.g. legacy encryption upgrade)
 	if err := MigrateLegacyCredentials(DB); err != nil {
-		log.Printf("[Database] Warning: Data migration failed: %v", err)
+		log.Printf("[Database] Warning: Legacy credentials migration failed: %v", err)
 	}
 
+    if err := MigrateJobLogs(DB); err != nil {
+        log.Printf("[Database] Warning: Job log migration failed: %v", err)
+    }
+
 	log.Println("Database initialized and schema migrated successfully.")
+
+	// Seed Default Admin
+	SeedDefaultAdmin(DB)
+}
+
+func SeedDefaultAdmin(db *gorm.DB) {
+	var count int64
+	db.Model(&User{}).Where("role = ?", RoleAdmin).Count(&count)
+	if count == 0 {
+		admin := User{
+			Email:    "admin@authmind.com",
+			Name:     "Default Administrator",
+			Role:     RoleAdmin,
+			Provider: "local",
+		}
+		if err := db.Create(&admin).Error; err != nil {
+			log.Printf("[Database] Failed to seed default admin: %v", err)
+		} else {
+			log.Println("[Database] Default admin account created: admin@authmind.com")
+		}
+	}
 }
