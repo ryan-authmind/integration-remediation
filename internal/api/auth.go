@@ -13,9 +13,9 @@ import (
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 func init() {
-    if len(jwtSecret) == 0 {
-        jwtSecret = []byte("default-secret-for-development-only")
-    }
+	if len(jwtSecret) == 0 {
+		log.Fatal("CRITICAL: JWT_SECRET environment variable is not set. Authentication cannot be initialized.")
+	}
 }
 
 type Claims struct {
