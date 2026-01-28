@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"remediation-engine/internal/api"
 	"remediation-engine/internal/core"
 	"remediation-engine/internal/database"
@@ -139,35 +140,34 @@ func main() {
 	if _, err := os.Stat(distPath + "/index.html"); err != nil {
 		distPath = "./web/dist"
 	}
-	log.Printf("[Server] Serving frontend from: %s", distPath)
+	log.Printf("[Server] Frontend assets path: %s", distPath)
 
+	// 1. Serve specific static assets
 	r.Static("/assets", distPath+"/assets")
 	r.Static("/vendors", distPath+"/vendors")
+	r.StaticFile("/favicon.ico", distPath+"/favicon.ico")
+	r.StaticFile("/favicon.png", distPath+"/favicon.png")
+	r.StaticFile("/logo-darkmode.png", distPath+"/logo-darkmode.png")
+	r.StaticFile("/authmind-logo-light.png", distPath+"/authmind-logo-light.png")
+	r.StaticFile("/", distPath+"/index.html")
 
-	// Fallback for React Router (Single Page App) and root-level static files
+	// 2. Main SPA fallback
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		// 1. If it's an API route that didn't match, return a real 404
+		// API routes should never serve index.html
 		if strings.HasPrefix(path, "/api") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API route not found"})
 			return
 		}
 
-		// 2. Check if the file exists in the dist directory (e.g. /favicon.ico, /logo.png)
-		fullPath := distPath + path
-		fileInfo, err := os.Stat(fullPath)
-		if err == nil && !fileInfo.IsDir() {
-			c.File(fullPath)
-			return
-		}
-
-		// 3. Otherwise, serve index.html for all other routes to support React Router
+		// All other routes serve index.html for React Router
 		indexPath := distPath + "/index.html"
 		if _, err := os.Stat(indexPath); err == nil {
 			c.File(indexPath)
 		} else {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Frontend not built or index.html missing"})
+			log.Printf("[Server] ERROR: index.html not found at %s", indexPath)
+			c.String(http.StatusNotFound, "Frontend assets missing. Run 'npm run build' in web directory.")
 		}
 	})
 
