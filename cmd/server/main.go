@@ -21,6 +21,14 @@ func main() {
 		log.Println("No .env file found, using system environment variables")
 	}
 
+	// Validate mandatory security configurations
+	if os.Getenv("JWT_SECRET") == "" {
+		log.Fatal("CRITICAL: JWT_SECRET environment variable is not set. Application cannot start securely.")
+	}
+	if os.Getenv("ENCRYPTION_KEY") == "" {
+		log.Fatal("CRITICAL: ENCRYPTION_KEY environment variable is not set. Data security compromised.")
+	}
+
 	modeStr := "Single-Tenant"
 	if tenancy.IsMultiTenant {
 		modeStr = "Multi-Tenant"

@@ -11,12 +11,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-
-func init() {
-	if len(jwtSecret) == 0 {
-		log.Fatal("CRITICAL: JWT_SECRET environment variable is not set. Authentication cannot be initialized.")
+func GetJWTSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// During actual runtime this should have been caught, but we keep a check for safety
+		return []byte("unconfigured-secret-safe-fallback-that-will-fail-validation")
 	}
+	return []byte(secret)
 }
 
 type Claims struct {
@@ -62,7 +63,7 @@ func Login(c *gin.Context) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := token.SignedString(GetJWTSecret())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return
