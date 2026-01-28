@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"remediation-engine/internal/api"
 	"remediation-engine/internal/core"
@@ -134,26 +135,22 @@ func main() {
 		}
 	}
 
-	distPath := "./dist"
-	if _, err := os.Stat(distPath + "/index.html"); err != nil {
-		distPath = "./web/dist"
+	distPath, _ := filepath.Abs("./dist")
+	if _, err := os.Stat(filepath.Join(distPath, "index.html")); err != nil {
+		distPath, _ = filepath.Abs("./web/dist")
 	}
-	log.Printf("[Server] Frontend assets path: %s", distPath)
+	log.Printf("[Server] Resolved frontend assets path: %s", distPath)
 
 	// 1. Serve specific static files and directories
-	r.Static("/assets", distPath+"/assets")
-	r.Static("/vendors", distPath+"/vendors")
-	r.StaticFile("/favicon.ico", distPath+"/favicon.ico")
-	r.StaticFile("/favicon.png", distPath+"/favicon.png")
-	r.StaticFile("/logo-darkmode.png", distPath+"/logo-darkmode.png")
-	r.StaticFile("/authmind-logo-light.png", distPath+"/authmind-logo-light.png")
+	r.Static("/assets", filepath.Join(distPath, "assets"))
+	r.Static("/vendors", filepath.Join(distPath, "vendors"))
+	r.StaticFile("/favicon.ico", filepath.Join(distPath, "favicon.ico"))
+	r.StaticFile("/favicon.png", filepath.Join(distPath, "favicon.png"))
+	r.StaticFile("/logo-darkmode.png", filepath.Join(distPath, "logo-darkmode.png"))
+	r.StaticFile("/authmind-logo-light.png", filepath.Join(distPath, "authmind-logo-light.png"))
+	r.StaticFile("/", filepath.Join(distPath, "index.html"))
 
-	// 2. Main route handler for the root
-	r.GET("/", func(c *gin.Context) {
-		c.File(distPath + "/index.html")
-	})
-
-	// 3. Main SPA fallback for all other routes
+	// 2. Main SPA fallback for all other routes
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
@@ -164,7 +161,7 @@ func main() {
 		}
 
 		// For everything else, serve index.html to allow React Router to take over
-		c.File(distPath + "/index.html")
+		c.File(filepath.Join(distPath, "index.html"))
 	})
 
 	log.Println("Starting Integration & Remediation Engine...")
