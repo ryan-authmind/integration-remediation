@@ -49,10 +49,10 @@ interface Workflow {
 
 const getSeverityColor = (sev: string) => {
     switch (sev) {
-        case 'Critical': return 'error';
-        case 'High': return 'warning';
-        case 'Medium': return 'info';
-        case 'Low': return 'success';
+        case 'Critical': return 'error'; // Magenta in theme
+        case 'High': return 'error';     // Magenta in theme
+        case 'Medium': return 'warning'; // Orange in theme
+        case 'Low': return 'info';       // Yellow in theme
         default: return 'default';
     }
 };
@@ -169,7 +169,16 @@ export default function Workflows() {
         </Select>
       </Box>
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+      <TableContainer 
+        component={Paper} 
+        variant="outlined" 
+        sx={{ 
+            borderRadius: 3, 
+            boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+            border: '1px solid rgba(115, 131, 143, 0.1)',
+            overflow: 'hidden'
+        }}
+      >
         <Table sx={{ minWidth: 650 }} aria-label="workflow table">
           <TableHead sx={{ bgcolor: 'action.hover' }}>
             <TableRow>

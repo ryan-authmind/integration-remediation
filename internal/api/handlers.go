@@ -54,6 +54,9 @@ func CreateIntegration(c *gin.Context) {
 			return
 		}
 
+        userID, _ := c.Get("user_id")
+        LogAudit(c, userID.(uint), input.TenantID, "CREATE", "INTEGRATION", fmt.Sprintf("%d", input.ID), input)
+
 	        // Seed default AuthMind Poller for the new tenant
 	        defaultPoller := database.Integration{
 	            TenantID:               input.ID,
@@ -299,6 +302,10 @@ func CreateWorkflow(c *gin.Context) {
     workflow.TenantID = tenancy.ResolveTenantID(c)
 
 	database.DB.Create(&workflow)
+
+    userID, _ := c.Get("user_id")
+    LogAudit(c, userID.(uint), workflow.TenantID, "CREATE", "WORKFLOW", fmt.Sprintf("%d", workflow.ID), workflow)
+
 	c.JSON(http.StatusCreated, workflow)
 }
 
@@ -351,6 +358,9 @@ func UpdateWorkflow(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+    userID, _ := c.Get("user_id")
+    LogAudit(c, userID.(uint), tenantID, "UPDATE", "WORKFLOW", fmt.Sprintf("%d", workflow.ID), workflow)
 
 	c.JSON(http.StatusOK, workflow)
 }

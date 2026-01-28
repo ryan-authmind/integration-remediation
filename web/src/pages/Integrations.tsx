@@ -64,6 +64,7 @@ const getVendorLogo = (name: string) => {
     if (n.includes('google') || n.includes('secops')) return '/vendors/google.png';
     if (n.includes('sailpoint')) return '/vendors/sailpoint.png';
     if (n.includes('saviynt')) return '/vendors/saviynt.png';
+    if (n.includes('ssf') || n.includes('shared signals')) return '/vendors/ssf.png';
     return null;
 };
 
@@ -320,9 +321,20 @@ export default function Integrations() {
         )}
         {integrations.map((item) => (
           <Grid item xs={12} md={6} lg={4} key={item.id}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Card 
+                variant="outlined" 
+                sx={{ 
+                    borderRadius: 3, 
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+                    '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0px 20px 40px rgba(35, 34, 71, 0.1)',
+                    }
+                }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {getVendorLogo(item.name) ? (
                             <img 
@@ -331,30 +343,59 @@ export default function Integrations() {
                                 style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} 
                             />
                         ) : (
-                            <CloudQueueIcon color="primary" />
+                            <Box sx={{ 
+                                bgcolor: 'rgba(255, 18, 83, 0.1)', 
+                                p: 1, 
+                                borderRadius: 2, 
+                                display: 'flex',
+                                color: 'primary.main'
+                            }}>
+                                <CloudQueueIcon />
+                            </Box>
                         )}
                         {selectedTenant === 0 && item.tenant && (
                             <Chip 
                                 label={item.tenant.name} 
                                 size="small" 
-                                color="secondary" 
                                 variant="filled" 
-                                sx={{ fontWeight: 700, fontSize: '0.65rem', height: 20 }} 
+                                sx={{ 
+                                    fontWeight: 700, 
+                                    fontSize: '0.65rem', 
+                                    height: 20,
+                                    bgcolor: 'secondary.main',
+                                    color: 'white'
+                                }} 
                             />
                         )}
                     </Box>
-                    <Chip label={item.auth_type.toUpperCase()} size="small" variant="outlined" />
+                    <Chip 
+                        label={item.auth_type.toUpperCase()} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ fontWeight: 600, borderRadius: 1.5 }}
+                    />
                 </Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>{item.name}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{item.base_url}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{item.name}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                    {item.base_url}
+                </Typography>
                 
                 {!item.is_available && (
-                    <Alert severity="error" sx={{ mb: 2, py: 0, '& .MuiAlert-icon': { fontSize: 18 } }}>
-                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                    <Alert 
+                        severity="error" 
+                        variant="standard"
+                        sx={{ 
+                            mb: 2, 
+                            py: 1, 
+                            borderRadius: 2,
+                            bgcolor: 'rgba(255, 43, 0, 0.1)',
+                            color: '#ff2b00',
+                            border: '1px solid rgba(255, 43, 0, 0.2)',
+                            '& .MuiAlert-icon': { fontSize: 20, color: '#ff2b00' } 
+                        }}
+                    >
+                        <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.05em' }}>
                             SERVICE UNAVAILABLE
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.7rem', display: 'block' }}>
-                            Disabled after {item.consecutive_failures} consecutive failures.
                         </Typography>
                     </Alert>
                 )}
@@ -362,17 +403,17 @@ export default function Integrations() {
                 {item.rotation_interval_days > 0 && (
                     <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <SecurityIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                        <Typography variant="caption" color="success.main">
-                            Auto-rotation: Every {item.rotation_interval_days} days
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
+                            Auto-rotation active
                         </Typography>
                     </Box>
                 )}
               </CardContent>
-              <Divider />
-              <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+              <Divider sx={{ borderStyle: 'dashed' }} />
+              <CardActions sx={{ justifyContent: 'space-between', px: 3, py: 2, bgcolor: 'rgba(115, 131, 143, 0.02)' }}>
                 <FormControlLabel
-                  control={<Switch checked={item.enabled} onChange={() => handleToggle(item)} />}
-                  label="Enabled"
+                  control={<Switch size="small" checked={item.enabled} onChange={() => handleToggle(item)} />}
+                  label={<Typography variant="caption" sx={{ fontWeight: 700 }}>ENABLED</Typography>}
                 />
                 <Box>
                     {!item.is_available && (
@@ -383,10 +424,17 @@ export default function Integrations() {
                             sx={{ mr: 1, fontWeight: 700, fontSize: '0.7rem' }}
                             onClick={() => handleReset(item)}
                         >
-                            Reset Connection
+                            Reset
                         </Button>
                     )}
-                    <Button startIcon={<SettingsIcon />} onClick={() => handleEditOpen(item)}>Configure</Button>
+                    <Button 
+                        startIcon={<SettingsIcon />} 
+                        size="small"
+                        sx={{ fontWeight: 700 }}
+                        onClick={() => handleEditOpen(item)}
+                    >
+                        Configure
+                    </Button>
                 </Box>
               </CardActions>
             </Card>

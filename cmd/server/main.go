@@ -84,32 +84,45 @@ func main() {
 
 	apiRoutes := r.Group("/api")
 
+	// Public Auth Routes
+	apiRoutes.POST("/auth/login", api.Login)
+
 	apiRoutes.Use(api.AuthMiddleware())
 
 	{
-
+		apiRoutes.GET("/auth/me", api.GetCurrentUser)
+		apiRoutes.GET("/audit/logs", api.RBACMiddleware("admin"), api.GetAuditLogs)
+		
+		// Integrations
 		apiRoutes.GET("/integrations", api.GetIntegrations)
-
-		apiRoutes.POST("/integrations", api.CreateIntegration)
-		apiRoutes.PUT("/integrations", api.UpdateIntegration)
-		apiRoutes.PUT("/integrations/:id/reset", api.ResetIntegrationCircuitBreaker)
+		apiRoutes.POST("/integrations", api.RBACMiddleware("integrator"), api.CreateIntegration)
+		apiRoutes.PUT("/integrations", api.RBACMiddleware("integrator"), api.UpdateIntegration)
+		apiRoutes.PUT("/integrations/:id/reset", api.RBACMiddleware("integrator"), api.ResetIntegrationCircuitBreaker)
+		
+		// Action Templates
 		apiRoutes.GET("/actions", api.GetActionDefinitions)
-		apiRoutes.POST("/actions", api.CreateActionDefinition)
-		apiRoutes.PUT("/actions", api.UpdateActionDefinition)
-		apiRoutes.POST("/import", api.ImportConfiguration)
+		apiRoutes.POST("/actions", api.RBACMiddleware("action_builder"), api.CreateActionDefinition)
+		apiRoutes.PUT("/actions", api.RBACMiddleware("action_builder"), api.UpdateActionDefinition)
+		apiRoutes.POST("/import", api.RBACMiddleware("action_builder", "integrator"), api.ImportConfiguration)
+		
+		// Workflows
 		apiRoutes.GET("/workflows", api.GetWorkflows)
-		apiRoutes.POST("/workflows", api.CreateWorkflow)
-		apiRoutes.PUT("/workflows", api.UpdateWorkflow)
-		apiRoutes.DELETE("/workflows/:id", api.DeleteWorkflow)
+		apiRoutes.POST("/workflows", api.RBACMiddleware("workflow_editor"), api.CreateWorkflow)
+		apiRoutes.PUT("/workflows", api.RBACMiddleware("workflow_editor"), api.UpdateWorkflow)
+		apiRoutes.DELETE("/workflows/:id", api.RBACMiddleware("workflow_editor"), api.DeleteWorkflow)
+		
+		// Jobs & Operations
 		apiRoutes.GET("/jobs", api.GetJobs)
-		apiRoutes.POST("/jobs/:id/rerun", api.RerunJob)
+		apiRoutes.POST("/jobs/:id/rerun", api.RBACMiddleware("workflow_editor", "admin"), api.RerunJob)
 		apiRoutes.GET("/jobs/:id/logs", api.GetJobLogs)
+		
 		apiRoutes.GET("/stats", api.GetDashboardStats)
 		apiRoutes.GET("/settings", api.GetSettings)
-		apiRoutes.PUT("/settings", api.UpdateSetting)
+		apiRoutes.PUT("/settings", api.RBACMiddleware("admin"), api.UpdateSetting)
 
 		// Admin Routes (Global context)
 		adminRoutes := apiRoutes.Group("/admin")
+		adminRoutes.Use(api.RBACMiddleware("admin"))
 		{
 			adminRoutes.GET("/tenants", api.GetTenants)
 			adminRoutes.POST("/tenants", api.CreateTenant)

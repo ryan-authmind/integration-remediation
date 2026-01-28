@@ -109,6 +109,11 @@ docker run -p 8080:8080 -v $(pwd)/data:/root/data integration-workflow-engine
 For detailed information on storage estimates, scaling, and database maintenance, please refer to:
 👉 **[CAPACITY_PLANNING.md](./CAPACITY_PLANNING.md)**
 
+## 🔐 Security & Audit
+
+For details on authentication (OIDC), RBAC roles, and audit logging, please refer to:
+👉 **[SECURITY.md](./docs/SECURITY.md)**
+
 ### Data Retention Policy
 The system includes an automated cleanup worker that:
 *   Deletes jobs and logs older than a configurable threshold (Default: **90 days**).
@@ -122,5 +127,6 @@ The system includes an automated cleanup worker that:
 - [x] React Workflow Editor with Severity Thresholds
 - [x] Port Template-based Actions from Python
 - [x] Data Retention & Capacity Planning
-- [ ] Authentication Middleware (OIDC/SAML)
-- [ ] Advanced RBAC for Multi-tenant isolation
+- [x] Authentication Middleware (OIDC/SAML)
+- [x] Advanced RBAC for Multi-tenant isolation
+- [ ] Detailed Reporting & Export (PDF/CSV)

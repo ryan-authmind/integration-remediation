@@ -374,6 +374,47 @@ func (e *ActionExecutor) renderTemplate(tplStr string, data interface{}) (string
 			}
 			return s
 		},
+		"ssf_event_type": func(issueType interface{}) string {
+			it := fmt.Sprintf("%v", issueType)
+			riscPrefix := "https://schemas.openid.net/secevent/risc/event-type/"
+			caepPrefix := "https://schemas.openid.net/secevent/caep/event-type/"
+
+			switch strings.ToLower(it) {
+			// Account Compromised (RISC)
+			case "compromised user", "compromised password", "suspected ad brute-force attack", 
+			     "suspected identity brute-force attack", "suspected ad golden ticket attack", 
+				 "suspected ad pass-the-ticket attack", "suspected directory/idp bot attack":
+				return riscPrefix + "account-compromised"
+
+			// Credential Change Required (RISC / CAEP) - RISC is more common for this
+			case "weak password", "password hash length", "password salt", 
+			     "md4 related issues", "md5 related issues", "sha-1 related issues":
+				return riscPrefix + "credential-change-required"
+
+			// Account Disabled (RISC)
+			case "shadow access", "shadow identity systems", "unused identities":
+				return riscPrefix + "account-disabled"
+
+			// Assurance Level Change (CAEP) - e.g. MFA missing
+			case "lack of mfa", "assets with no mfa configured":
+				return caepPrefix + "assurance-level-change"
+
+			// Device Compliance Change (CAEP)
+			case "exposed assets", "shadow assets", "repeated ad login attempts from invalid device":
+				return caepPrefix + "device-compliance-change"
+
+			// Session Revoked (CAEP) - Default for suspicious activities
+			case "suspicious inbound access", "suspicious outbound access", "impossible travel", 
+			     "unusual user access", "unauthorized identity access", "access from unauthorized country",
+				 "access to unauthorized country", "access using public vpn", "access using anonymous ip",
+				 "suspected access token sharing":
+				return caepPrefix + "session-revoked"
+			
+			// Default fallback
+			default:
+				return caepPrefix + "session-revoked"
+			}
+		},
 	}).Parse(tplStr)
 	if err != nil {
 		return "", err

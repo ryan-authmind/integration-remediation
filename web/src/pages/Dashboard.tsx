@@ -635,11 +635,11 @@ export default function Dashboard() {
                           <Legend />
                           {selectedTenant === 0 ? (
                               <>
-                                <Bar dataKey="events" name="Events Processed" fill="#00D1B2" radius={[0, 4, 4, 0]} barSize={15} />
-                                <Bar dataKey="executions" name="Workflows Executed" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="events" name="Events Processed" fill="#5ab645" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="executions" name="Workflows Executed" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={15} />
                               </>
                           ) : (
-                                <Bar dataKey="value" name="Executions" fill="#0062FF" radius={[0, 4, 4, 0]} barSize={20} />
+                                <Bar dataKey="value" name="Executions" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={20} />
                           )}
                       </BarChart>
                   </ResponsiveContainer>
@@ -659,10 +659,10 @@ export default function Dashboard() {
                             <YAxis tick={{ fontSize: 11 }} />
                             <RechartsTooltip />
                             <Legend wrapperStyle={{ fontSize: '10px' }} />
-                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#00D1B2" />
-                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#FFBB28" />
-                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#FF8042" />
-                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#AAAAAA" />
+                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#5ab645" />
+                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#fbb400" />
+                            <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#fb7300" />
+                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#ced5db" />
                         </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -671,10 +671,10 @@ export default function Dashboard() {
                           <Box key={d.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 60 }}>{d.name}</Typography>
                               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#00D1B2', color: 'white' }} />}
-                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FFBB28', color: 'white' }} />}
-                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#FF8042', color: 'white' }} />}
-                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#AAAAAA', color: 'white' }} />}
+                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#5ab645', color: 'white' }} />}
+                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fbb400', color: 'white' }} />}
+                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fb7300', color: 'white' }} />}
+                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#ced5db', color: 'white' }} />}
                               </Box>
                           </Box>
                       ))}

@@ -207,9 +207,18 @@ export default function WorkflowEditor() {
         <Grid container spacing={4}>
             {/* Left Column: Metadata */}
             <Grid item xs={12} lg={4}>
-                <Paper sx={{ p: 3, height: '100%' }} variant="outlined">
-                    <Typography variant="h6" gutterBottom>General Information</Typography>
-                    <Divider sx={{ mb: 3 }} />
+                <Paper 
+                    sx={{ 
+                        p: 4, 
+                        height: '100%', 
+                        borderRadius: 3,
+                        boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+                        border: '1px solid rgba(115, 131, 143, 0.1)'
+                    }} 
+                    variant="outlined"
+                >
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 800 }}>General Information</Typography>
+                    <Divider sx={{ mb: 3, borderStyle: 'dashed' }} />
                     
                     <Grid container spacing={3}>
                         <Grid item xs={12}>
@@ -305,14 +314,23 @@ export default function WorkflowEditor() {
 
             {/* Right Column: Steps */}
             <Grid item xs={12} lg={8}>
-                <Paper sx={{ p: 3, minHeight: '100%' }} variant="outlined">
+                <Paper 
+                    sx={{ 
+                        p: 4, 
+                        minHeight: '100%', 
+                        borderRadius: 3,
+                        boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+                        border: '1px solid rgba(115, 131, 143, 0.1)'
+                    }} 
+                    variant="outlined"
+                >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                        <Typography variant="h6">Execution Steps</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 800 }}>Execution Steps</Typography>
                         <Button variant="outlined" startIcon={<AddIcon />} onClick={addStep} disabled={availableActions.length === 0}>
                             Add Step
                         </Button>
                     </Box>
-                    <Divider sx={{ mb: 3 }} />
+                    <Divider sx={{ mb: 3, borderStyle: 'dashed' }} />
                     
                     {workflow.steps.length === 0 ? (
                         <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
