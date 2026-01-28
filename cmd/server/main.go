@@ -134,24 +134,26 @@ func main() {
 		}
 	}
 
-	// Serve Static Frontend Assets
-	// Try local 'dist' first (for self-contained builds), then 'web/dist' (for development)
 	distPath := "./dist"
 	if _, err := os.Stat(distPath + "/index.html"); err != nil {
 		distPath = "./web/dist"
 	}
 	log.Printf("[Server] Frontend assets path: %s", distPath)
 
-	// 1. Serve specific static assets
+	// 1. Serve specific static files and directories
 	r.Static("/assets", distPath+"/assets")
 	r.Static("/vendors", distPath+"/vendors")
 	r.StaticFile("/favicon.ico", distPath+"/favicon.ico")
 	r.StaticFile("/favicon.png", distPath+"/favicon.png")
 	r.StaticFile("/logo-darkmode.png", distPath+"/logo-darkmode.png")
 	r.StaticFile("/authmind-logo-light.png", distPath+"/authmind-logo-light.png")
-	r.StaticFile("/", distPath+"/index.html")
 
-	// 2. Main SPA fallback
+	// 2. Main route handler for the root
+	r.GET("/", func(c *gin.Context) {
+		c.File(distPath + "/index.html")
+	})
+
+	// 3. Main SPA fallback for all other routes
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
@@ -161,14 +163,8 @@ func main() {
 			return
 		}
 
-		// All other routes serve index.html for React Router
-		indexPath := distPath + "/index.html"
-		if _, err := os.Stat(indexPath); err == nil {
-			c.File(indexPath)
-		} else {
-			log.Printf("[Server] ERROR: index.html not found at %s", indexPath)
-			c.String(http.StatusNotFound, "Frontend assets missing. Run 'npm run build' in web directory.")
-		}
+		// For everything else, serve index.html to allow React Router to take over
+		c.File(distPath + "/index.html")
 	})
 
 	log.Println("Starting Integration & Remediation Engine...")
