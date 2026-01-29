@@ -12,10 +12,20 @@ import (
 func LogAudit(c *gin.Context, userID uint, tenantID uint, action string, resource string, targetID string, details interface{}) {
 	detailsJSON, _ := json.Marshal(details)
 
+	var uID *uint
+	if userID != 0 {
+		uID = &userID
+	}
+
+	var tID *uint
+	if tenantID != 0 {
+		tID = &tenantID
+	}
+
 	log := database.AuditLog{
 		Timestamp: time.Now(),
-		UserID:    userID,
-		TenantID:  tenantID,
+		UserID:    uID,
+		TenantID:  tID,
 		Action:    action,
 		Resource:  resource,
 		TargetID:  targetID,

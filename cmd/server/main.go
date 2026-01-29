@@ -2,7 +2,10 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"remediation-engine/internal/api"
 	"remediation-engine/internal/core"
 	"remediation-engine/internal/database"
@@ -16,6 +19,14 @@ func main() {
 	// 1. Load .env file if it exists
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using system environment variables")
+	}
+
+	// Validate mandatory security configurations
+	if os.Getenv("JWT_SECRET") == "" {
+		log.Fatal("CRITICAL: JWT_SECRET environment variable is not set. Application cannot start securely.")
+	}
+	if os.Getenv("ENCRYPTION_KEY") == "" {
+		log.Fatal("CRITICAL: ENCRYPTION_KEY environment variable is not set. Data security compromised.")
 	}
 
 	modeStr := "Single-Tenant"
@@ -133,26 +144,44 @@ func main() {
 		}
 	}
 
-	// Serve Static Frontend Assets
-	// Try local 'dist' first (for self-contained builds), then 'web/dist' (for development)
-	distPath := "./dist"
-	if _, err := os.Stat(distPath + "/index.html"); err != nil {
-		distPath = "./web/dist"
+	// Determine the correct path for frontend assets
+	var distPath string
+	if _, err := os.Stat("./dist/index.html"); err == nil {
+		distPath, _ = filepath.Abs("./dist")
+	} else if _, err := os.Stat("./web/dist/index.html"); err == nil {
+		distPath, _ = filepath.Abs("./web/dist")
+	} else {
+		log.Println("[Server] WARNING: Could not find frontend index.html in ./dist or ./web/dist")
+		distPath, _ = filepath.Abs("./dist") // Default
 	}
+	
+	log.Printf("[Server] Serving frontend from: %s", distPath)
 
-	r.Static("/assets", distPath+"/assets")
+	// 1. Static file serving
+	r.Static("/assets", filepath.Join(distPath, "assets"))
+	r.Static("/vendors", filepath.Join(distPath, "vendors"))
+	r.StaticFile("/favicon.ico", filepath.Join(distPath, "favicon.ico"))
+	r.StaticFile("/favicon.png", filepath.Join(distPath, "favicon.png"))
+	r.StaticFile("/logo-darkmode.png", filepath.Join(distPath, "logo-darkmode.png"))
+	r.StaticFile("/authmind-logo-light.png", filepath.Join(distPath, "authmind-logo-light.png"))
 
-	// Fallback for React Router (Single Page App) and root-level static files
+	// 2. Handle root path explicitly
+	r.GET("/", func(c *gin.Context) {
+		c.File(filepath.Join(distPath, "index.html"))
+	})
+
+	// 3. SPA Fallback for all other routes
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		// Check if the file exists in the dist directory
-		fullPath := distPath + path
-		if _, err := os.Stat(fullPath); err == nil && path != "/" {
-			c.File(fullPath)
+
+		// API routes should return a proper 404
+		if strings.HasPrefix(path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API route not found"})
 			return
 		}
-		// Otherwise serve index.html for SPA
-		c.File(distPath + "/index.html")
+
+		// Serve index.html for React Router to handle the route
+		c.File(filepath.Join(distPath, "index.html"))
 	})
 
 	log.Println("Starting Integration & Remediation Engine...")

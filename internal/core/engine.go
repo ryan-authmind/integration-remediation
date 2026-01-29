@@ -154,8 +154,11 @@ func (e *Engine) scheduleForTenant(tenant database.Tenant) {
             } else {
                 select {
                 case e.taskQueue <- task:
+                    if e.DebugMode {
+                        log.Printf("[Engine] Added polling task for Tenant %d Poller %s to queue", tenant.ID, poller.Name)
+                    }
                 default:
-                    log.Printf("[Engine] Task queue full, skipping poll for Tenant %d Poller %d", tenant.ID, poller.ID)
+                    log.Printf("[Engine] Task queue full, skipping poll for Tenant %d Poller %s", tenant.ID, poller.Name)
                 }
             }
         }
@@ -163,38 +166,44 @@ func (e *Engine) scheduleForTenant(tenant database.Tenant) {
 }
 
 func (e *Engine) pollAuthMind(task PollingTask) {
+	log.Printf("[Engine][Tenant:%d] Polling AuthMind via %s...", task.TenantID, task.Integration.Name)
+	
 	var creds struct{ Token string `json:"token"` }
 	json.Unmarshal([]byte(task.Integration.Credentials), &creds)
 
-				sdk := integrations.NewAuthMindSDK(task.Integration.BaseURL, creds.Token)
-			
-			    // Check state for "last_id_tenant_{id}_integration_{id}"
-				stateKey := fmt.Sprintf("last_id_t%d_i%d", task.TenantID, task.Integration.ID)
-				var state database.StateStore
-				if err := database.DB.Where("key = ?", stateKey).First(&state).Error; err != nil {        state = database.StateStore{Key: stateKey, Value: "0"}
-        database.DB.Save(&state) 
-    }
+	sdk := integrations.NewAuthMindSDK(task.Integration.BaseURL, creds.Token)
 
-    	// Poll for EVERYTHING ("" for type) to be efficient
-    	issues, err := sdk.GetIssues("", state.Value)
-    	if err != nil {
-    		log.Printf("[Engine] Failed to fetch issues for Tenant %d: %v", task.TenantID, err)
-    		return
-    	}
-        
-        if len(issues) > 0 && e.DebugMode {
-            log.Printf("[Engine] Tenant %d: Fetched %d new issues from AuthMind (LastID: %s)", task.TenantID, len(issues), state.Value)
-        }
-    
-    	for _, issue := range issues {
-    		issueIDStr := issue.IssueID
-            
-            // Initial event status
-            eventStatus := "no_workflow"
+	// Check state for "last_id_tenant_{id}_integration_{id}"
+	stateKey := fmt.Sprintf("last_id_t%d_i%d", task.TenantID, task.Integration.ID)
+	var state database.StateStore
+	if err := database.DB.Where("key = ?", stateKey).First(&state).Error; err != nil {
+		state = database.StateStore{Key: stateKey, Value: "0"}
+		database.DB.Save(&state)
+	}
 
-            if e.DebugMode {
-                log.Printf("[Engine] Tenant %d: Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
-            }
+	// Poll for EVERYTHING ("" for type) to be efficient
+	issues, err := sdk.GetIssues("", state.Value)
+	if err != nil {
+		log.Printf("[Engine][Tenant:%d] Failed to fetch issues from AuthMind: %v", task.TenantID, err)
+		return
+	}
+
+	if len(issues) == 0 {
+		// log.Printf("[Engine][Tenant:%d] No new issues found.", task.TenantID)
+		return
+	}
+
+	log.Printf("[Engine][Tenant:%d] Fetched %d new issues from AuthMind (LastID: %s)", task.TenantID, len(issues), state.Value)
+
+	for _, issue := range issues {
+		issueIDStr := issue.IssueID
+		
+		// Initial event status
+		eventStatus := "no_workflow"
+
+		if e.DebugMode {
+			log.Printf("[Engine][Tenant:%d] Processing Issue %s (Type: %s, Severity: %d)", task.TenantID, issueIDStr, issue.IssueType, issue.Severity)
+		}
     
     		userEmail := "Unknown"
     		if issue.IssueKeys != nil {
