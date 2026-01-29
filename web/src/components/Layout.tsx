@@ -1,12 +1,24 @@
 import * as React from 'react';
-import Box from '@mui/material/Box';
-import CssBaseline from '@mui/material/CssBaseline';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Button from '@mui/material/Button';
-import Container from '@mui/material/Box';
+import { 
+    Drawer, 
+    List, 
+    ListItem, 
+    ListItemButton, 
+    ListItemIcon, 
+    ListItemText, 
+    Box, 
+    CssBaseline, 
+    AppBar, 
+    Toolbar, 
+    Typography, 
+    Avatar, 
+    Menu, 
+    MenuItem, 
+    Select, 
+    Tooltip, 
+    Divider 
+} from '@mui/material';
 
 // Icons
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -19,14 +31,11 @@ import ListAltIcon from '@mui/icons-material/ListAlt';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 
 import { ColorModeContext } from '../context/ColorModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
-import { Avatar, Menu, MenuItem, Select, Tooltip, Chip, Divider } from '@mui/material';
 
 const drawerWidth = 240;
 

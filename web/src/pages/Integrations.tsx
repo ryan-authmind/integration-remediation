@@ -348,7 +348,7 @@ export default function Integrations() {
                                 display: 'flex',
                                 color: 'primary.main'
                             }}>
-                                <CloudQueueIcon size="small" />
+                                <CloudQueueIcon fontSize="small" />
                             </Box>
                         )}
                         {selectedTenant === 0 && item.tenant && (
@@ -436,8 +436,6 @@ export default function Integrations() {
                     </Button>
                 </Box>
               </CardActions>
-            </Card>
-          </Grid>
             </Card>
           </Grid>
         ))}
