@@ -635,46 +635,43 @@ export default function Dashboard() {
                           <Legend />
                           {selectedTenant === 0 ? (
                               <>
-                                <Bar dataKey="events" name="Events Processed" fill="#5ab645" radius={[0, 4, 4, 0]} barSize={15} />
-                                <Bar dataKey="executions" name="Workflows Executed" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={15} />
+                                <Bar dataKey="events" name="Events Processed" fill="#28a745" radius={[0, 4, 4, 0]} barSize={12} />
+                                <Bar dataKey="executions" name="Workflows Executed" fill="#de005b" radius={[0, 4, 4, 0]} barSize={12} />
                               </>
                           ) : (
-                                <Bar dataKey="value" name="Executions" fill="#ff1253" radius={[0, 4, 4, 0]} barSize={20} />
+                                <Bar dataKey="value" name="Executions" fill="#de005b" radius={[0, 4, 4, 0]} barSize={16} />
                           )}
                       </BarChart>
                   </ResponsiveContainer>
               </Paper>
           </Grid>
           <Grid item xs={12} md={4}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 700 }}>Event Risk Distribution</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-                      Breakdown of all processed events by Risk and processing outcome.
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Paper variant="outlined" sx={{ p: 3, height: '100%' }}>
+                  <Typography variant="h6" gutterBottom sx={{ fontSize: '0.875rem', fontWeight: 700, color: 'text.secondary' }}>EVENT RISK DISTRIBUTION</Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={eventBreakdownData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                            <YAxis tick={{ fontSize: 11 }} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e1e4e8" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={{ stroke: '#e1e4e8' }} />
+                            <YAxis tick={{ fontSize: 10 }} axisLine={{ stroke: '#e1e4e8' }} />
                             <RechartsTooltip />
                             <Legend wrapperStyle={{ fontSize: '10px' }} />
-                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#5ab645" />
-                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#fbb400" />
+                            <Bar dataKey="triggered" name="Triggered" stackId="a" fill="#28a745" />
+                            <Bar dataKey="filtered_severity" name="Low Severity" stackId="a" fill="#ffc107" />
                             <Bar dataKey="filtered_type" name="Mismatch Type" stackId="a" fill="#fb7300" />
-                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#ced5db" />
+                            <Bar dataKey="no_workflow" name="No Workflow" stackId="a" fill="#6c757d" />
                         </BarChart>
                     </ResponsiveContainer>
                   </Box>
                   <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {eventBreakdownData.map((d) => (
                           <Box key={d.name} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="caption" sx={{ fontWeight: 700, minWidth: 60 }}>{d.name}</Typography>
+                              <Typography variant="caption" sx={{ fontWeight: 600, minWidth: 60 }}>{d.name}</Typography>
                               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#5ab645', color: 'white' }} />}
-                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fbb400', color: 'white' }} />}
-                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fb7300', color: 'white' }} />}
-                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#ced5db', color: 'white' }} />}
+                                  {d.triggered > 0 && <Chip label={`${d.triggered} Run`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#28a745', color: 'white', borderRadius: 1 }} />}
+                                  {d.filtered_severity > 0 && <Chip label={`${d.filtered_severity} Sev`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#ffc107', color: 'black', borderRadius: 1 }} />}
+                                  {d.filtered_type > 0 && <Chip label={`${d.filtered_type} Type`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#fb7300', color: 'white', borderRadius: 1 }} />}
+                                  {d.no_workflow > 0 && <Chip label={`${d.no_workflow} N/A`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#6c757d', color: 'white', borderRadius: 1 }} />}
                               </Box>
                           </Box>
                       ))}

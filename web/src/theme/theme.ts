@@ -3,111 +3,69 @@ import { PaletteMode } from '@mui/material';
 export const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
     mode,
-    ...(mode === 'light'
-      ? {
-          // AuthMind Dashboard Light
-          primary: {
-            main: '#ff1253', // Primary Brand Magenta
-            light: '#ff5a85',
-            dark: '#c10a53',
-          },
-          secondary: {
-            main: '#232247', // Brand Deep Space
-          },
-          warning: {
-            main: '#fb7300', // Brand Orange (Medium Risk)
-          },
-          info: {
-            main: '#fbb400', // Brand Yellow (Low Risk)
-          },
-          background: {
-            default: '#f8fafb',
-            paper: '#ffffff',
-          },
-          text: {
-            primary: '#232247',
-            secondary: '#73838f',
-          },
-          success: {
-            main: '#5ab645', // Brand Green
-          },
-          error: {
-            main: '#ff2b00', // Brand Red
-          },
-          divider: '#ced5db',
-        }
-      : {
-          // AuthMind Dashboard Dark
-          primary: {
-            main: '#ff1253', // Primary Brand Magenta
-            light: '#ff5a85',
-            dark: '#c10a53',
-          },
-          secondary: {
-            main: '#232247',
-          },
-          warning: {
-            main: '#fb7300',
-          },
-          info: {
-            main: '#fbb400',
-          },
-          background: {
-            default: '#0A0E17', // Keep deep dark for contrast
-            paper: '#161B22',   // Slightly lighter
-          },
-          text: {
-            primary: '#ced5db',
-            secondary: '#73838f',
-          },
-          success: {
-            main: '#5ab645',
-          },
-          error: {
-            main: '#ff2b00',
-          },
-          divider: '#464d70',
-        }),
+    primary: {
+      main: '#de005b', // Core Product Magenta
+      light: '#ff4d8d',
+      dark: '#a60042',
+    },
+    secondary: {
+      main: '#2d2d2d', // Sidebar Dark Gray
+    },
+    background: {
+      default: mode === 'light' ? '#f4f7f9' : '#0d1117',
+      paper: mode === 'light' ? '#ffffff' : '#161b22',
+    },
+    text: {
+      primary: mode === 'light' ? '#333333' : '#c9d1d9',
+      secondary: mode === 'light' ? '#666666' : '#8b949e',
+    },
+    success: {
+      main: '#28a745',
+    },
+    warning: {
+      main: '#fb7300',
+    },
+    error: {
+      main: '#dc3545',
+    },
+    divider: mode === 'light' ? '#e1e4e8' : '#30363d',
   },
   typography: {
-    fontFamily: '"Futura PT", "Century Gothic", "Inter", sans-serif',
-    h1: { fontSize: '2.5rem', fontWeight: 700, letterSpacing: '0.05em' },
-    h2: { fontSize: '2rem', fontWeight: 700, letterSpacing: '0.05em' },
-    h4: { fontWeight: 700, letterSpacing: '0.05em' },
+    fontFamily: '"Roboto", "Inter", "Segoe UI", "Arial", sans-serif',
+    h1: { fontSize: '2rem', fontWeight: 600 },
+    h2: { fontSize: '1.75rem', fontWeight: 600 },
+    h4: { fontSize: '1.25rem', fontWeight: 600 },
+    h6: { fontSize: '1rem', fontWeight: 600 },
     button: {
-      fontWeight: 600,
       textTransform: 'none',
-      letterSpacing: '0.05em',
+      fontWeight: 500,
     },
-    body1: {
-      letterSpacing: '0.02em',
-    },
+    body1: { fontSize: '0.875rem' },
+    body2: { fontSize: '0.75rem' },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 4, // Core product uses tighter corners
   },
   components: {
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: '#232247', // Brand Deep Space
+          backgroundColor: '#de005b', // Bold Magenta Header
           color: '#ffffff',
-          boxShadow: 'none',
-          borderBottom: '1px solid #464d70',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 4,
+          padding: '6px 16px',
         },
         containedPrimary: {
-          backgroundColor: '#ff1253',
-          color: '#ffffff',
+          backgroundColor: '#de005b',
           '&:hover': {
-            backgroundColor: '#ff3d71',
-            boxShadow: '0px 4px 12px rgba(255,18,83,0.3)',
+            backgroundColor: '#c40052',
           },
         },
       },
@@ -115,16 +73,34 @@ export const getDesignTokens = (mode: PaletteMode) => ({
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage: 'none',
-          border: mode === 'light' ? '1px solid #ced5db' : '1px solid #464d70',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          border: mode === 'light' ? '1px solid #e1e4e8' : '1px solid #30363d',
         },
       },
     },
-    MuiDrawer: {
+    MuiTableCell: {
       styleOverrides: {
-        paper: {
-          backgroundColor: mode === 'light' ? '#ffffff' : '#0a0a0c',
-          borderRight: mode === 'light' ? '1px solid #ced5db' : '1px solid #464d70',
+        head: {
+          backgroundColor: mode === 'light' ? '#f8f9fa' : '#161b22',
+          color: mode === 'light' ? '#586069' : '#8b949e',
+          fontWeight: 600,
+          fontSize: '0.75rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          padding: '12px 16px',
+        },
+        root: {
+          padding: '12px 16px',
+          borderColor: mode === 'light' ? '#e1e4e8' : '#30363d',
+        },
+      },
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            backgroundColor: mode === 'light' ? '#fcfcfc' : '#1c2128',
+          },
         },
       },
     },

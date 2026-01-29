@@ -44,50 +44,41 @@ export default function Login() {
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
-                bgcolor: 'background.default',
+                bgcolor: '#f4f7f9',
                 position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: 0.05,
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 L90 10 L90 90 L10 90 Z' fill='none' stroke='%23ff1253' stroke-width='0.5'/%3E%3Ccircle cx='10' cy='10' r='2' fill='%23ff1253'/%3E%3Ccircle cx='90' cy='10' r='2' fill='%23fb7300'/%3E%3Ccircle cx='90' cy='90' r='2' fill='%23fbb400'/%3E%3C/svg%3E")`,
-                  backgroundSize: '300px 300px',
-                }
+                overflow: 'hidden'
             }}
         >
             <Card 
                 sx={{ 
-                    width: 450, 
-                    borderRadius: 4, 
-                    boxShadow: '0px 25px 50px rgba(35, 34, 71, 0.15)',
+                    width: 400, 
+                    borderRadius: 1, 
+                    boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.1)',
+                    border: '1px solid #e1e4e8',
                     position: 'relative',
                     zIndex: 1
                 }}
             >
-                <CardContent sx={{ p: 5 }}>
+                <CardContent sx={{ p: 4 }}>
                     <Box sx={{ textAlign: 'center', mb: 4 }}>
-                        <img src="/logo-darkmode.png" alt="AuthMind" style={{ height: '40px', marginBottom: '16px' }} />
-                        <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '0.05em' }}>
-                            INTEGRATION REMEDIATION
+                        <img src="/logo-darkmode.png" alt="AuthMind" style={{ height: '32px', marginBottom: '16px', filter: 'brightness(0) saturate(100%) invert(11%) sepia(94%) saturate(6144%) hue-rotate(330deg) brightness(88%) contrast(101%)' }} />
+                        <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                            Remediation Engine
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 500 }}>
-                            Sign in to manage your environment
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            Please sign in to continue
                         </Typography>
                     </Box>
 
-                    {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
+                    {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 1, py: 0 }}>{error}</Alert>}
 
                     <form onSubmit={handleSubmit}>
-                        <Stack spacing={2.5}>
+                        <Stack spacing={2}>
                             <TextField
                                 label="Email Address"
                                 type="email"
                                 fullWidth
+                                size="small"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -96,52 +87,52 @@ export default function Login() {
                                 label="Password"
                                 type="password"
                                 fullWidth
+                                size="small"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                             />
                             <Button 
                                 type="submit" 
                                 variant="contained" 
-                                size="large" 
                                 fullWidth
                                 disabled={loading}
-                                sx={{ py: 1.5, fontWeight: 800, fontSize: '1rem' }}
+                                sx={{ py: 1, fontWeight: 600, mt: 1 }}
                             >
-                                {loading ? 'SIGNING IN...' : 'SIGN IN'}
+                                {loading ? 'Signing in...' : 'Sign In'}
                             </Button>
                         </Stack>
                     </form>
 
-                    <Divider sx={{ my: 4, borderStyle: 'dashed' }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-                            OR CONTINUE WITH
+                    <Divider sx={{ my: 3 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                            OR
                         </Typography>
                     </Divider>
 
-                    <Stack spacing={2}>
+                    <Stack spacing={1.5}>
                         <Button
                             variant="outlined"
                             fullWidth
                             startIcon={<GoogleIcon />}
-                            sx={{ py: 1.5, borderColor: '#ced5db', color: 'text.primary', fontWeight: 600 }}
-                            onClick={() => window.alert('OIDC Flow (Google) to be implemented with backend redirect')}
+                            sx={{ color: 'text.primary', borderColor: '#e1e4e8', textTransform: 'none' }}
+                            onClick={() => window.alert('OIDC Flow (Google) to be implemented')}
                         >
                             Google Account
                         </Button>
                         <Button
                             variant="outlined"
                             fullWidth
-                            startIcon={<img src="/vendors/microsoft.png" style={{ height: '18px' }} />}
-                            sx={{ py: 1.5, borderColor: '#ced5db', color: 'text.primary', fontWeight: 600 }}
-                            onClick={() => window.alert('OIDC Flow (Entra ID) to be implemented with backend redirect')}
+                            startIcon={<img src="/vendors/microsoft.png" style={{ height: '16px' }} />}
+                            sx={{ color: 'text.primary', borderColor: '#e1e4e8', textTransform: 'none' }}
+                            onClick={() => window.alert('OIDC Flow (Entra ID) to be implemented')}
                         >
                             Microsoft Entra
                         </Button>
                     </Stack>
                 </CardContent>
-                <Box sx={{ p: 2, textAlign: 'center', bgcolor: alpha('#73838f', 0.05) }}>
-                    <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>
-                        &copy; 2026 AuthMind Inc. All rights reserved.
+                <Box sx={{ p: 2, textAlign: 'center', borderTop: '1px solid #e1e4e8', bgcolor: '#fcfcfc' }}>
+                    <Typography variant="caption" color="text.disabled">
+                        &copy; 2026 AuthMind Inc.
                     </Typography>
                 </Box>
             </Card>

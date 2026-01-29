@@ -20,12 +20,15 @@ import CorporateFareIcon from '@mui/icons-material/CorporateFare';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 
 import { ColorModeContext } from '../context/ColorModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { Avatar, Menu, MenuItem, Select, Tooltip, Chip, Divider } from '@mui/material';
+
+const drawerWidth = 240;
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -51,12 +54,12 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const menuItems = [
-      { text: 'Dashboard', icon: <DashboardIcon sx={{ fontSize: 20 }} />, path: '/' },
-      { text: 'Tenants', icon: <CorporateFareIcon sx={{ fontSize: 20 }} />, path: '/tenants' },
-      { text: 'Integrations', icon: <IntegrationInstructionsIcon sx={{ fontSize: 20 }} />, path: '/integrations' },
-      { text: 'Action Templates', icon: <ListAltIcon sx={{ fontSize: 20 }} />, path: '/actions' },
-      { text: 'Workflows', icon: <AccountTreeIcon sx={{ fontSize: 20 }} />, path: '/workflows' },
-      { text: 'Audit Logs', icon: <HistoryIcon sx={{ fontSize: 20 }} />, path: '/audit' },
+      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+      { text: 'Tenants', icon: <CorporateFareIcon />, path: '/tenants' },
+      { text: 'Integrations', icon: <IntegrationInstructionsIcon />, path: '/integrations' },
+      { text: 'Action Templates', icon: <ListAltIcon />, path: '/actions' },
+      { text: 'Workflows', icon: <AccountTreeIcon />, path: '/workflows' },
+      { text: 'Audit Logs', icon: <HistoryIcon />, path: '/audit' },
   ];
 
   const handleUserMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -78,51 +81,32 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <CssBaseline />
-      <AppBar position="fixed">
-        <Toolbar sx={{ height: 64 }}>
+      <AppBar 
+        position="fixed" 
+        sx={{ 
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+            backgroundColor: '#de005b',
+            height: 56
+        }}
+      >
+        <Toolbar sx={{ minHeight: '56px !important', px: '16px !important' }}>
           {/* Logo Section */}
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 4 }}>
             <img 
               src="/logo-darkmode.png" 
               alt="AuthMind Logo" 
-              style={{ height: '28px', cursor: 'pointer' }} 
+              style={{ height: '24px', cursor: 'pointer' }} 
               onClick={() => navigate('/')}
             />
           </Box>
 
-          {/* Navigation Items */}
-          <Box sx={{ display: 'flex', flexGrow: 1, gap: 1, height: '100%', alignItems: 'center' }}>
-            {menuItems.map((item) => (
-              <Button
-                key={item.text}
-                onClick={() => navigate(item.path)}
-                startIcon={item.icon}
-                sx={{
-                  color: 'inherit',
-                  height: '40px',
-                  px: 2,
-                  borderRadius: 1,
-                  opacity: isSelected(item.path) ? 1 : 0.8,
-                  bgcolor: isSelected(item.path) ? 'rgba(255, 18, 83, 0.1)' : 'transparent',
-                  borderBottom: isSelected(item.path) ? '2px solid #ff1253' : 'none',
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 18, 83, 0.05)',
-                    opacity: 1,
-                  },
-                  fontWeight: isSelected(item.path) ? 700 : 500,
-                }}
-              >
-                {item.text}
-              </Button>
-            ))}
-          </Box>
+          <Box sx={{ flexGrow: 1 }} />
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {!loading && (
                 <Box sx={{ display: 'flex', alignItems: 'center', mr: 3, gap: 1 }}>
-                    <CorporateFareIcon sx={{ color: 'primary.main', fontSize: 20 }} />
                     <Select
                         size="small"
                         value={selectedTenant}
@@ -131,7 +115,7 @@ export default function Layout({ children }: LayoutProps) {
                         disableUnderline
                         sx={{ 
                             color: 'white', 
-                            fontWeight: 700, 
+                            fontWeight: 600, 
                             fontSize: '0.85rem',
                             '& .MuiSelect-icon': { color: 'white' }
                         }}
@@ -143,11 +127,8 @@ export default function Layout({ children }: LayoutProps) {
                     </Select>
                 </Box>
             )}
-            <Typography variant="body2" sx={{ mr: 2, fontWeight: 600, opacity: 0.9 }}>
-                Integration Engine
-            </Typography>
             <Tooltip title={`Current: ${colorMode.mode}`}>
-                <IconButton onClick={colorMode.toggleColorMode} color="inherit">
+                <IconButton onClick={colorMode.toggleColorMode} color="inherit" size="small">
                     {getThemeIcon()}
                 </IconButton>
             </Tooltip>
@@ -156,11 +137,11 @@ export default function Layout({ children }: LayoutProps) {
             <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
                 <IconButton 
                     onClick={handleUserMenuClick}
-                    sx={{ p: 0.5, border: '1px solid rgba(255,255,255,0.2)' }}
+                    sx={{ p: 0 }}
                 >
                     <Avatar 
                         src={user?.avatar_url} 
-                        sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '1rem', fontWeight: 800 }}
+                        sx={{ width: 32, height: 32, border: '2px solid rgba(255,255,255,0.2)' }}
                     >
                         {user?.name?.charAt(0) || 'U'}
                     </Avatar>
@@ -171,31 +152,15 @@ export default function Layout({ children }: LayoutProps) {
                     onClose={handleUserMenuClose}
                     transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                     anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                    PaperProps={{
-                        sx: {
-                            mt: 1.5,
-                            width: 220,
-                            borderRadius: 2,
-                            boxShadow: '0px 10px 25px rgba(35, 34, 71, 0.15)',
-                        }
-                    }}
                 >
                     <Box sx={{ px: 2, py: 1.5 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{user?.name}</Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{user?.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             {user?.email}
                         </Typography>
-                        <Chip 
-                            label={user?.role?.toUpperCase()} 
-                            size="small" 
-                            sx={{ mt: 1, fontWeight: 800, fontSize: '0.6rem', height: 18, bgcolor: 'rgba(255,18,83,0.1)', color: 'primary.main' }} 
-                        />
                     </Box>
                     <Divider />
-                    <MenuItem onClick={handleUserMenuClose} sx={{ py: 1, fontSize: '0.85rem', fontWeight: 600 }}>
-                        <AccountCircleIcon sx={{ fontSize: 18, mr: 1.5, color: 'text.secondary' }} /> Profile Settings
-                    </MenuItem>
-                    <MenuItem onClick={handleLogout} sx={{ py: 1, fontSize: '0.85rem', fontWeight: 600, color: 'error.main' }}>
+                    <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                         <LogoutIcon sx={{ fontSize: 18, mr: 1.5 }} /> Sign Out
                     </MenuItem>
                 </Menu>
@@ -204,33 +169,74 @@ export default function Layout({ children }: LayoutProps) {
         </Toolbar>
       </AppBar>
 
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          [`& .MuiDrawer-paper`]: { 
+              width: drawerWidth, 
+              boxSizing: 'border-box',
+              backgroundColor: '#2d2d2d',
+              color: '#ffffff',
+              borderRight: 'none',
+              pt: '56px'
+          },
+        }}
+      >
+        <Box sx={{ overflow: 'auto', mt: 2 }}>
+          <List sx={{ px: 1 }}>
+            {menuItems.map((item) => (
+              <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    borderRadius: 1,
+                    minHeight: 44,
+                    backgroundColor: isSelected(item.path) ? 'rgba(222, 0, 91, 0.15)' : 'transparent',
+                    borderLeft: isSelected(item.path) ? '4px solid #de005b' : '4px solid transparent',
+                    color: isSelected(item.path) ? '#de005b' : '#b0b0b0',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      color: '#ffffff',
+                      '& .MuiListItemIcon-root': { color: '#ffffff' }
+                    },
+                  }}
+                >
+                  <ListItemIcon 
+                    sx={{ 
+                        minWidth: 40, 
+                        color: isSelected(item.path) ? '#de005b' : '#b0b0b0' 
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text} 
+                    primaryTypographyProps={{ 
+                        fontSize: '0.875rem', 
+                        fontWeight: isSelected(item.path) ? 600 : 400 
+                    }} 
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
+
       <Box
         component="main"
         sx={{ 
             flexGrow: 1, 
-            bgcolor: 'background.default', 
-            pt: '80px', 
-            pb: 4,
-            px: 4,
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: 0.03,
-              pointerEvents: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 L90 10 L90 90 L10 90 Z' fill='none' stroke='%23ff1253' stroke-width='0.5'/%3E%3Ccircle cx='10' cy='10' r='2' fill='%23ff1253'/%3E%3Ccircle cx='90' cy='10' r='2' fill='%23fb7300'/%3E%3Ccircle cx='90' cy='90' r='2' fill='%23fbb400'/%3E%3C/svg%3E")`,
-              backgroundSize: '400px 400px',
-            }
+            pt: '56px',
+            minHeight: '100vh',
+            position: 'relative'
         }}
       >
-        <Container sx={{ maxWidth: '1600px', mx: 'auto' }}>
+        <Box sx={{ p: 4, maxWidth: '1600px', mx: 'auto' }}>
             {children}
-        </Container>
+        </Box>
       </Box>
     </Box>
   );

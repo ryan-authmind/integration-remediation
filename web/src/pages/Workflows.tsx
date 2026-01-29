@@ -173,40 +173,51 @@ export default function Workflows() {
         component={Paper} 
         variant="outlined" 
         sx={{ 
-            borderRadius: 3, 
-            boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
-            border: '1px solid rgba(115, 131, 143, 0.1)',
+            borderRadius: 1, 
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid #e1e4e8',
             overflow: 'hidden'
         }}
       >
         <Table sx={{ minWidth: 650 }} aria-label="workflow table">
-          <TableHead sx={{ bgcolor: 'action.hover' }}>
+          <TableHead sx={{ bgcolor: '#f8f9fa' }}>
             <TableRow>
-              {selectedTenant === 0 && <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>}
-              <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Trigger</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Associated Pollers</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Severity Threshold</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Steps</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+              {selectedTenant === 0 && <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>TENANT</TableCell>}
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>NAME</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>TRIGGER</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>ASSOCIATED POLLERS</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>SEVERITY THRESHOLD</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>STEPS</TableCell>
+              <TableCell sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>STATUS</TableCell>
+              <TableCell align="right" sx={{ fontWeight: 600, color: '#586069', fontSize: '0.75rem' }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {workflows.map((row) => (
-              <TableRow key={row.id} hover>
+              <TableRow key={row.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                 {selectedTenant === 0 && (
                     <TableCell>
-                        <Chip label={row.tenant?.name || 'Unknown'} size="small" color="secondary" sx={{ fontWeight: 700, fontSize: '0.65rem' }} />
+                        <Chip 
+                            label={row.tenant?.name || 'Unknown'} 
+                            size="small" 
+                            sx={{ fontWeight: 600, fontSize: '0.65rem', borderRadius: 0.5, bgcolor: '#2d2d2d', color: 'white' }} 
+                        />
                     </TableCell>
                 )}
-                <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>
-                  {row.name}
-                  <Typography variant="caption" display="block" color="text.secondary">
+                <TableCell component="th" scope="row" sx={{ py: 2 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>{row.name}</Typography>
+                  <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                     {row.description}
                   </Typography>
                 </TableCell>
-                <TableCell>{row.trigger_type}</TableCell>
+                <TableCell>
+                    <Chip 
+                        label={row.trigger_type} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ fontSize: '0.65rem', fontWeight: 600, borderRadius: 0.5 }} 
+                    />
+                </TableCell>
                 <TableCell>
                     {row.pollers && row.pollers.length > 0 ? row.pollers.map((p, idx) => (
                         <Chip 
@@ -214,8 +225,7 @@ export default function Workflows() {
                             label={p.name} 
                             size="small" 
                             variant="outlined" 
-                            color="info"
-                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem', fontWeight: 600 }} 
+                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.65rem', fontWeight: 500, borderRadius: 0.5 }} 
                         />
                     )) : <Typography variant="caption" color="text.disabled">No pollers assigned</Typography>}
                 </TableCell>
@@ -225,7 +235,7 @@ export default function Workflows() {
                         size="small" 
                         color={getSeverityColor(row.min_severity || 'Low') as any}
                         variant="filled"
-                        sx={{ fontWeight: 700, borderRadius: 1 }}
+                        sx={{ fontWeight: 600, borderRadius: 0.5, fontSize: '0.65rem' }}
                     />
                 </TableCell>
                 <TableCell>
@@ -235,7 +245,7 @@ export default function Workflows() {
                             label={s.definition?.name || s.action_type} 
                             size="small" 
                             variant="outlined" 
-                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem' }} 
+                            sx={{ mr: 0.5, mb: 0.5, fontSize: '0.65rem', borderRadius: 0.5 }} 
                         />
                     )) : <Typography variant="caption" color="text.disabled">No steps configured</Typography>}
                 </TableCell>
@@ -247,13 +257,9 @@ export default function Workflows() {
                             size="small"
                             color="primary"
                         />
-                        <Chip 
-                            label={row.enabled ? "Active" : "Disabled"} 
-                            color={row.enabled ? "success" : "default"} 
-                            size="small"
-                            variant="outlined"
-                            sx={{ ml: 1, fontWeight: 700, fontSize: '0.65rem' }}
-                        />
+                        <Typography variant="caption" sx={{ ml: 1, fontWeight: 600, color: row.enabled ? 'success.main' : 'text.disabled' }}>
+                            {row.enabled ? "ACTIVE" : "DISABLED"}
+                        </Typography>
                     </Box>
                 </TableCell>
                 <TableCell align="right">

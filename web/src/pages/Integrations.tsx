@@ -324,33 +324,31 @@ export default function Integrations() {
             <Card 
                 variant="outlined" 
                 sx={{ 
-                    borderRadius: 3, 
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0px 10px 20px rgba(35, 34, 71, 0.05)',
+                    borderRadius: 1, 
+                    transition: 'box-shadow 0.2s ease',
                     '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0px 20px 40px rgba(35, 34, 71, 0.1)',
+                        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
                     }
                 }}
             >
               <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         {getVendorLogo(item.name) ? (
                             <img 
                                 src={getVendorLogo(item.name)!} 
                                 alt={item.name} 
-                                style={{ height: '32px', maxWidth: '120px', objectFit: 'contain' }} 
+                                style={{ height: '28px', maxWidth: '100px', objectFit: 'contain' }} 
                             />
                         ) : (
                             <Box sx={{ 
-                                bgcolor: 'rgba(255, 18, 83, 0.1)', 
+                                bgcolor: 'rgba(222, 0, 91, 0.05)', 
                                 p: 1, 
-                                borderRadius: 2, 
+                                borderRadius: 1, 
                                 display: 'flex',
                                 color: 'primary.main'
                             }}>
-                                <CloudQueueIcon />
+                                <CloudQueueIcon size="small" />
                             </Box>
                         )}
                         {selectedTenant === 0 && item.tenant && (
@@ -359,11 +357,12 @@ export default function Integrations() {
                                 size="small" 
                                 variant="filled" 
                                 sx={{ 
-                                    fontWeight: 700, 
+                                    fontWeight: 600, 
                                     fontSize: '0.65rem', 
-                                    height: 20,
+                                    height: 18,
                                     bgcolor: 'secondary.main',
-                                    color: 'white'
+                                    color: 'white',
+                                    borderRadius: 0.5
                                 }} 
                             />
                         )}
@@ -372,11 +371,11 @@ export default function Integrations() {
                         label={item.auth_type.toUpperCase()} 
                         size="small" 
                         variant="outlined" 
-                        sx={{ fontWeight: 600, borderRadius: 1.5 }}
+                        sx={{ fontWeight: 600, borderRadius: 0.5, fontSize: '0.65rem' }}
                     />
                 </Box>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>{item.name}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, fontSize: '1rem' }}>{item.name}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace', fontSize: '0.75rem', opacity: 0.8 }}>
                     {item.base_url}
                 </Typography>
                 
@@ -386,34 +385,34 @@ export default function Integrations() {
                         variant="standard"
                         sx={{ 
                             mb: 2, 
-                            py: 1, 
-                            borderRadius: 2,
-                            bgcolor: 'rgba(255, 43, 0, 0.1)',
-                            color: '#ff2b00',
-                            border: '1px solid rgba(255, 43, 0, 0.2)',
-                            '& .MuiAlert-icon': { fontSize: 20, color: '#ff2b00' } 
+                            py: 0, 
+                            borderRadius: 1,
+                            bgcolor: 'rgba(220, 53, 69, 0.05)',
+                            color: '#dc3545',
+                            border: '1px solid rgba(220, 53, 69, 0.2)',
+                            '& .MuiAlert-icon': { fontSize: 18, color: '#dc3545', mr: 1 } 
                         }}
                     >
-                        <Typography variant="caption" sx={{ fontWeight: 800, letterSpacing: '0.05em' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, letterSpacing: '0.02em' }}>
                             SERVICE UNAVAILABLE
                         </Typography>
                     </Alert>
                 )}
 
                 {item.rotation_interval_days > 0 && (
-                    <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SecurityIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SecurityIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 500 }}>
                             Auto-rotation active
                         </Typography>
                     </Box>
                 )}
               </CardContent>
-              <Divider sx={{ borderStyle: 'dashed' }} />
-              <CardActions sx={{ justifyContent: 'space-between', px: 3, py: 2, bgcolor: 'rgba(115, 131, 143, 0.02)' }}>
+              <Divider />
+              <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1, bgcolor: 'rgba(0, 0, 0, 0.01)' }}>
                 <FormControlLabel
                   control={<Switch size="small" checked={item.enabled} onChange={() => handleToggle(item)} />}
-                  label={<Typography variant="caption" sx={{ fontWeight: 700 }}>ENABLED</Typography>}
+                  label={<Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>ENABLED</Typography>}
                 />
                 <Box>
                     {!item.is_available && (
@@ -421,7 +420,7 @@ export default function Integrations() {
                             size="small" 
                             variant="contained" 
                             color="warning" 
-                            sx={{ mr: 1, fontWeight: 700, fontSize: '0.7rem' }}
+                            sx={{ mr: 1, fontWeight: 600, fontSize: '0.65rem', py: 0.5 }}
                             onClick={() => handleReset(item)}
                         >
                             Reset
@@ -430,13 +429,15 @@ export default function Integrations() {
                     <Button 
                         startIcon={<SettingsIcon />} 
                         size="small"
-                        sx={{ fontWeight: 700 }}
+                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                         onClick={() => handleEditOpen(item)}
                     >
                         Configure
                     </Button>
                 </Box>
               </CardActions>
+            </Card>
+          </Grid>
             </Card>
           </Grid>
         ))}
