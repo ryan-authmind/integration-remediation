@@ -1,12 +1,6 @@
 import * as React from 'react';
 import IconButton from '@mui/material/IconButton';
 import { 
-    Drawer, 
-    List, 
-    ListItem, 
-    ListItemButton, 
-    ListItemIcon, 
-    ListItemText, 
     Box, 
     CssBaseline, 
     AppBar, 
@@ -17,27 +11,20 @@ import {
     MenuItem, 
     Select, 
     Tooltip, 
-    Divider 
+    Divider,
+    Button
 } from '@mui/material';
 
 // Icons
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import IntegrationInstructionsIcon from '@mui/icons-material/IntegrationInstructions';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import ListAltIcon from '@mui/icons-material/ListAlt';
-import CorporateFareIcon from '@mui/icons-material/CorporateFare';
-import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 import { ColorModeContext } from '../context/ColorModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
-
-const drawerWidth = 240;
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -63,12 +50,12 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const menuItems = [
-      { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-      { text: 'Tenants', icon: <CorporateFareIcon />, path: '/tenants' },
-      { text: 'Integrations', icon: <IntegrationInstructionsIcon />, path: '/integrations' },
-      { text: 'Action Templates', icon: <ListAltIcon />, path: '/actions' },
-      { text: 'Workflows', icon: <AccountTreeIcon />, path: '/workflows' },
-      { text: 'Audit Logs', icon: <HistoryIcon />, path: '/audit' },
+      { text: 'Dashboard', path: '/' },
+      { text: 'Tenants', path: '/tenants' },
+      { text: 'Integrations', path: '/integrations' },
+      { text: 'Action Templates', path: '/actions' },
+      { text: 'Workflows', path: '/workflows' },
+      { text: 'Audit Logs', path: '/audit' },
   ];
 
   const handleUserMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -90,14 +77,14 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
       <CssBaseline />
       <AppBar 
         position="fixed" 
         sx={{ 
-            zIndex: (theme) => theme.zIndex.drawer + 1,
             backgroundColor: '#de005b',
-            height: 56
+            height: 56,
+            boxShadow: 'none'
         }}
       >
         <Toolbar sx={{ minHeight: '56px !important', px: '16px !important' }}>
@@ -109,6 +96,32 @@ export default function Layout({ children }: LayoutProps) {
               style={{ height: '24px', cursor: 'pointer' }} 
               onClick={() => navigate('/')}
             />
+          </Box>
+
+          {/* Navigation Section */}
+          <Box sx={{ display: 'flex', gap: 0.5, height: '56px', alignItems: 'center' }}>
+            {menuItems.map((item) => (
+              <Button
+                key={item.text}
+                onClick={() => navigate(item.path)}
+                sx={{
+                  color: '#ffffff',
+                  height: '56px',
+                  px: 2,
+                  borderRadius: 0,
+                  fontSize: '0.8125rem',
+                  fontWeight: isSelected(item.path) ? 700 : 400,
+                  backgroundColor: isSelected(item.path) ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                  borderBottom: isSelected(item.path) ? '3px solid #ffffff' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                  textTransform: 'none',
+                }}
+              >
+                {item.text}
+              </Button>
+            ))}
           </Box>
 
           <Box sx={{ flexGrow: 1 }} />
@@ -178,69 +191,12 @@ export default function Layout({ children }: LayoutProps) {
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { 
-              width: drawerWidth, 
-              boxSizing: 'border-box',
-              backgroundColor: '#2d2d2d',
-              color: '#ffffff',
-              borderRight: 'none',
-              pt: '56px'
-          },
-        }}
-      >
-        <Box sx={{ overflow: 'auto', mt: 2 }}>
-          <List sx={{ px: 1 }}>
-            {menuItems.map((item) => (
-              <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => navigate(item.path)}
-                  sx={{
-                    borderRadius: 1,
-                    minHeight: 44,
-                    backgroundColor: isSelected(item.path) ? 'rgba(222, 0, 91, 0.15)' : 'transparent',
-                    borderLeft: isSelected(item.path) ? '4px solid #de005b' : '4px solid transparent',
-                    color: isSelected(item.path) ? '#de005b' : '#b0b0b0',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      color: '#ffffff',
-                      '& .MuiListItemIcon-root': { color: '#ffffff' }
-                    },
-                  }}
-                >
-                  <ListItemIcon 
-                    sx={{ 
-                        minWidth: 40, 
-                        color: isSelected(item.path) ? '#de005b' : '#b0b0b0' 
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.text} 
-                    primaryTypographyProps={{ 
-                        fontSize: '0.875rem', 
-                        fontWeight: isSelected(item.path) ? 600 : 400 
-                    }} 
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      </Drawer>
-
       <Box
         component="main"
         sx={{ 
             flexGrow: 1, 
             pt: '56px',
             minHeight: '100vh',
-            position: 'relative'
         }}
       >
         <Box sx={{ p: 4, maxWidth: '1600px', mx: 'auto' }}>
